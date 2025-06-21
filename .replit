@@ -1,3 +1,4 @@
+modules = ["nodejs-20"]
 [nix]
 channel = "stable-24_05"
 packages = ["static-web-server"]
@@ -7,11 +8,15 @@ localPort = 80
 externalPort = 80
 
 [[ports]]
+localPort = 3000
+externalPort = 3000
+
+[[ports]]
 localPort = 5000
 externalPort = 5000
 
 [workflows]
-runButton = "Start Static Server"
+runButton = "start dev server"
 
 [[workflows.workflow]]
 name = "Start Static Server"
@@ -21,3 +26,12 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "static-web-server --port 5000 --root . --host 0.0.0.0"
+
+[[workflows.workflow]]
+name = "start dev server"
+mode = "sequential"
+author = 21427086
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
