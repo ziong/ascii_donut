@@ -11,10 +11,18 @@ const renderFrame = () => {
     const R1 = 1; // Radius of the torus
     const R2 = 2; // Distance from center to the torus
     const K2 = 5; // Distance from viewer to screen
-    const K1 = screenWidth * K2 * 3 / (8 * (R1 + R2)); // Scale factor
+    // K1 is now global and updated by updateDimensions()
 
     // Clear arrays
-    for (let k = 0; k < screenWidth * screenHeight; k++) {
+    // Ensure screenWidth and screenHeight are positive before allocating
+    const bufferSize = (screenWidth > 0 && screenHeight > 0) ? screenWidth * screenHeight : 0;
+    if (bufferSize === 0) {
+        console.warn("Screen dimensions are too small or invalid, skipping render.");
+        preTag.textContent = "Window too small or error in dimension calculation.";
+        return; // Skip rendering if dimensions are invalid
+    }
+
+    for (let k = 0; k < bufferSize; k++) {
         b[k] = 0;
         z[k] = ' ';
     }
@@ -70,8 +78,70 @@ const renderFrame = () => {
 };
 
 // Define screen size (can be adjusted)
-const screenWidth = 80;
-const screenHeight = 40;
+// let screenWidth = 80; // old fixed size
+// let screenHeight = 40; // old fixed size
+let screenWidth, screenHeight;
+let K1; // Declare K1 globally to be updated
+
+// Function to calculate character dimensions (approximate)
+function getCharDimensions() {
+    const temp = document.createElement("span");
+    temp.innerHTML = "X"; // Use a common character
+    temp.style.fontFamily = getComputedStyle(preTag).fontFamily;
+    temp.style.fontSize = getComputedStyle(preTag).fontSize;
+    temp.style.position = "absolute";
+    temp.style.visibility = "hidden";
+    document.body.appendChild(temp);
+    const charWidth = temp.offsetWidth;
+    const charHeight = temp.offsetHeight;
+    document.body.removeChild(temp);
+    return { charWidth, charHeight };
+}
+
+
+// Function to update screen dimensions and related parameters
+function updateDimensions() {
+    const { charWidth, charHeight } = getCharDimensions();
+
+    if (charWidth === 0 || charHeight === 0) {
+        // Fallback if char dimensions are zero (e.g. display: none)
+        // This might happen if called too early or preTag is not visible
+        console.warn("Character dimensions are zero. Using fallback screen size.");
+        screenWidth = 80;
+        screenHeight = 40;
+    } else {
+        screenWidth = Math.floor(window.innerWidth / charWidth);
+        screenHeight = Math.floor(window.innerHeight / charHeight);
+    }
+
+    // Ensure K1 is updated whenever screenWidth changes
+    // Constants for torus geometry
+    const R1 = 1; // Radius of the torus
+    const R2 = 2; // Distance from center to the torus
+    const K2 = 5; // Distance from viewer to screen
+    K1 = screenWidth * K2 * 3 / (8 * (R1 + R2));
+
+    // Optional: Adjust preTag font size slightly to fill space better, though this can be tricky
+    // preTag.style.fontSize = Math.min(window.innerWidth / screenWidth, window.innerHeight / screenHeight) + 'px';
+    // This would require re-calculating charWidth/Height and potentially loop, so be careful.
+    // For now, we use the CSS font-size and calculate columns/rows based on that.
+
+    console.log(`Screen dimensions: ${screenWidth}x${screenHeight} chars`);
+    // No need to call renderFrame here, the interval will pick it up.
+    // If there was an active animation frame, it should be restarted.
+}
+
+// Initial dimension update
+updateDimensions();
+
+// Add resize event listener
+window.addEventListener('resize', () => {
+    updateDimensions();
+    // It's good practice to re-render immediately on resize for responsiveness
+    // However, ensure renderFrame() can handle being called outside the interval.
+    // If renderFrame is heavy, you might want to debounce this.
+    renderFrame();
+});
 
 // Mouse dragging variables
 let isDragging = false;
