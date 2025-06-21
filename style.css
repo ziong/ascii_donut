@@ -1,15 +1,19 @@
 body {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
     margin: 0;
+    padding: 0;
     background-color: #000;
-    color: #fff;
+    color: #00ff00; /* Green text color */
     font-family: monospace;
+    overflow: hidden; /* Hide scrollbars if content overflows */
 }
 
 #donut {
-    font-size: 10px; /* Adjust as needed */
+    font-size: 10px; /* This might need dynamic adjustment or a different approach for true full screen character grid */
     line-height: 1;
+    width: 100vw;
+    height: 100vh;
+    display: flex; /* To allow centering if needed, though direct text content might not need it */
+    justify-content: center; /* Center pre content horizontally */
+    align-items: center; /* Center pre content vertically */
+    text-align: center; /* Ensure text within pre is centered */
 }
