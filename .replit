@@ -1,0 +1,19 @@
+[nix]
+channel = "stable-24_05"
+packages = ["static-web-server"]
+
+[[ports]]
+localPort = 80
+externalPort = 80
+
+[workflows]
+runButton = "Start Static Server"
+
+[[workflows.workflow]]
+name = "Start Static Server"
+author = 21427086
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "static-web-server --port 5000 --root . --host 0.0.0.0"
