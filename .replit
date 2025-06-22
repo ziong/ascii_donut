@@ -34,4 +34,4 @@ author = 21427086
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev"
+args = "cd nuxt-app-donut && npm run dev"
