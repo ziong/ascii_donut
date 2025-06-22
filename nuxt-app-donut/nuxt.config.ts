@@ -15,6 +15,12 @@ export default defineNuxtConfig({
     }
   },
   css: ['~/assets/main.css'], // Assuming we will create this for global styles
+  nitro: {
+    devServer: {
+      host: '0.0.0.0',
+      port: 3000
+    }
+  },
   vite: {
     server: {
       host: '0.0.0.0',
