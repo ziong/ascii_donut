@@ -1,0 +1,20 @@
+/* This file can be used for global styles if preferred over app.vue <style> */
+/* For this project, the global styles are simple enough to be in app.vue */
+/* If we had more extensive global styling, this would be the place. */
+
+/* Example:
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #000;
+  color: #00ff00;
+  font-family: monospace;
+  overflow: hidden;
+}
+*/
+
+/* We have already placed these styles in app.vue's <style> tag.
+   If nuxt.config.ts points to this file via `css: ['~/assets/main.css']`,
+   then styles here would also be applied. It's generally better to have them in one place.
+   For now, leaving this file minimal as app.vue handles the necessary global styles.
+*/
