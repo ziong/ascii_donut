@@ -14,6 +14,7 @@ const B = ref<number>(0); // Rotation angle B
 const screenWidth = ref<number>(80); // Default width in characters
 const screenHeight = ref<number>(40); // Default height in characters
 let K1 = ref<number>(0); // Projection constant K1
+const zoomFactor = ref<number>(1); // Zoom factor (1 = normal, >1 = zoomed in, <1 = zoomed out)
 
 // Mouse dragging state
 const isDragging = ref<boolean>(false);
@@ -67,8 +68,8 @@ const updateDimensions = () => {
     screenHeight.value = Math.floor(window.innerHeight / charHeight);
   }
 
-  K1.value = screenWidth.value * K2 * 3 / (8 * (R1 + R2));
-  console.log(`Screen dimensions: ${screenWidth.value}x${screenHeight.value} chars. K1: ${K1.value}`);
+  K1.value = screenWidth.value * K2 * 3 / (8 * (R1 + R2)) * zoomFactor.value;
+  console.log(`Screen dimensions: ${screenWidth.value}x${screenHeight.value} chars. K1: ${K1.value}, Zoom: ${zoomFactor.value}`);
 };
 
 
@@ -184,6 +185,17 @@ const handleResize = () => {
   });
 };
 
+// Keyboard event handlers for zoom
+const handleKeyDown = (e: KeyboardEvent) => {
+  if (e.key === '+' || e.key === '=') {
+    zoomFactor.value = Math.min(zoomFactor.value * 1.1, 5); // Max zoom 5x
+    updateDimensions();
+  } else if (e.key === '-' || e.key === '_') {
+    zoomFactor.value = Math.max(zoomFactor.value / 1.1, 0.2); // Min zoom 0.2x
+    updateDimensions();
+  }
+};
+
 onMounted(() => {
   // Attach to window for global mouse capture and resize
   window.addEventListener('mousedown', handleMouseDown);
@@ -191,6 +203,7 @@ onMounted(() => {
   window.addEventListener('mouseup', handleMouseUpOrLeave);
   window.addEventListener('mouseleave', handleMouseUpOrLeave); // Ensure drag stops if mouse leaves window
   window.addEventListener('resize', handleResize);
+  window.addEventListener('keydown', handleKeyDown);
 
   // Initial setup
   // nextTick ensures that the preTag is available for getCharDimensions
@@ -213,6 +226,7 @@ onUnmounted(() => {
   window.removeEventListener('mouseup', handleMouseUpOrLeave);
   window.removeEventListener('mouseleave', handleMouseUpOrLeave);
   window.removeEventListener('resize', handleResize);
+  window.removeEventListener('keydown', handleKeyDown);
   // Restore cursor if component is unmounted while dragging
   if (document.body) {
       document.body.style.cursor = 'default';
@@ -236,5 +250,9 @@ onUnmounted(() => {
   position: absolute;
   top: 0;
   left: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 </style>
