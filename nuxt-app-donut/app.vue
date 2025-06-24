@@ -13,21 +13,30 @@
 </script>
 
 <style>
-/* Global styles from the original style.css */
-html, body {
+/* Global styles - ensure full viewport coverage */
+* {
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
   background-color: #000;
-  color: #00ff00; /* Green text color */
+  color: #00ff00;
   font-family: monospace;
-  overflow: hidden; /* Hide scrollbars if content overflows */
-  width: 100vw;
-  height: 100vh;
+  overflow: hidden;
+}
+
+#__nuxt, #__layout {
+  width: 100%;
+  height: 100%;
 }
 
 /* Root div should take full viewport */
 div {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
 }
 </style>

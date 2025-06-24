@@ -223,14 +223,18 @@ onUnmounted(() => {
 
 <style scoped>
 .donut-pre-tag {
-  font-size: 10px; /* Base size, actual character grid depends on this + viewport */
-  line-height: 1; /* Crucial for consistent charHeight calculation */
-  width: 100vw;
-  height: 100vh;
-  text-align: left; /* Original was center, but per-line content forms the shape */
+  font-size: 10px;
+  line-height: 1;
+  width: 100%;
+  height: 100%;
+  text-align: left;
   white-space: pre;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 </style>
