@@ -225,13 +225,12 @@ onUnmounted(() => {
 .donut-pre-tag {
   font-size: 10px; /* Base size, actual character grid depends on this + viewport */
   line-height: 1; /* Crucial for consistent charHeight calculation */
-  /* width: 100vw; // Let the content and char calculations define this effectively
-  height: 100vh; */
+  width: 100vw;
+  height: 100vh;
   text-align: left; /* Original was center, but per-line content forms the shape */
   white-space: pre;
   margin: 0;
-  /* Ensure it can be targeted for cursor changes by parent or body */
-  /* The component itself might not fill the viewport, its parent might. */
-  /* Centering of the block itself, if smaller than viewport, would be parent's job */
+  padding: 0;
+  box-sizing: border-box;
 }
 </style>
