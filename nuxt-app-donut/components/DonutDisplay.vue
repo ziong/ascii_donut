@@ -223,8 +223,8 @@ onUnmounted(() => {
 
 <style scoped>
 .donut-pre-tag {
-  font-size: 10px;
-  line-height: 1;
+  font-size: 8px;
+  line-height: 8px;
   width: 100%;
   height: 100%;
   text-align: left;
