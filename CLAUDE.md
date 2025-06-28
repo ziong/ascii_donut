@@ -21,6 +21,9 @@ cd nuxt-app-donut
 - `npm run preview` - Preview production build
 - `npm install` - Install dependencies
 
+### Slash Commands
+- `/dev` - Start the development server (equivalent to `cd nuxt-app-donut && npm run dev`)
+
 ## Architecture
 
 ### Core Components

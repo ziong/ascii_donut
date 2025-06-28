@@ -35,7 +35,7 @@ html, body {
 }
 
 /* Root div should take full viewport */
-div {
+#__nuxt > div {
   width: 100%;
   height: 100%;
 }
