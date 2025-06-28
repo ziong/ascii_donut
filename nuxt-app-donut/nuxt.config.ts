@@ -18,13 +18,13 @@ export default defineNuxtConfig({
   nitro: {
     devServer: {
       host: '0.0.0.0',
-      port: 3000
+      port: 3080
     }
   },
   vite: {
     server: {
       host: '0.0.0.0',
-      port: 3000,
+      port: 3080,
       // Configure HMR for Replit or similar environments
       hmr: {
         protocol: 'wss', // Use 'wss' for HTTPS, 'ws' for HTTP
