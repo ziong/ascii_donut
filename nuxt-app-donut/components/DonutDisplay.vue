@@ -43,6 +43,12 @@ const lastMouseY = ref<number>(0);
 // Animation timer
 let renderInterval: ReturnType<typeof setInterval> | null = null;
 
+// Font size recalculation flag
+const isRecalculating = ref<boolean>(false);
+
+// Pause state for rotation
+const isPaused = ref<boolean>(false);
+
 // Torus geometry constants (can be tweaked)
 const R1 = 1;
 const R2 = 2;
@@ -94,6 +100,11 @@ const updateDimensions = () => {
 
 
 const renderFrame = () => {
+  // Skip rendering during font size recalculation
+  if (isRecalculating.value) {
+    return;
+  }
+  
   if (!donutPreElement.value || K1.value === 0) { // Ensure K1 is initialized
     frameContent.value = "Initializing dimensions or K1 is zero...";
     return;
@@ -151,7 +162,8 @@ const renderFrame = () => {
   }
   frameContent.value = frame;
 
-  if (!isDragging.value) {
+  // Only auto-rotate if not dragging and not paused
+  if (!isDragging.value && !isPaused.value) {
     A.value += 0.04;
     B.value += 0.02;
   }
@@ -201,6 +213,20 @@ const handleResize = () => {
   });
 };
 
+// Font size recalculation with screen clear
+const recalculateWithNewFontSize = () => {
+  isRecalculating.value = true;
+  frameContent.value = ''; // Clear screen immediately
+  
+  // Wait for DOM to update with new font size, then recalculate
+  nextTick(() => {
+    setTimeout(() => {
+      updateDimensions(); // Recalculate with new font size
+      isRecalculating.value = false; // Resume rendering
+    }, 100); // Allow time for font rendering
+  });
+};
+
 // Keyboard event handlers for zoom and font size
 const handleKeyDown = (e: KeyboardEvent) => {
   if (e.key === '+' || e.key === '=') {
@@ -211,10 +237,13 @@ const handleKeyDown = (e: KeyboardEvent) => {
     updateDimensions();
   } else if (e.key === '[') {
     fontSize.value = Math.max(fontSize.value - 1, 4); // Min font size 4px
-    updateDimensions();
+    recalculateWithNewFontSize();
   } else if (e.key === ']') {
     fontSize.value = Math.min(fontSize.value + 1, 24); // Max font size 24px
-    updateDimensions();
+    recalculateWithNewFontSize();
+  } else if (e.key === ' ') {
+    e.preventDefault(); // Prevent page scrolling
+    isPaused.value = !isPaused.value; // Toggle pause state
   }
 };
 
