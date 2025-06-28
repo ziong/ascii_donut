@@ -191,10 +191,12 @@ const originalSpeedY = Math.random() * 0.9 + 0.1; // Y-axis rotation speed (0.1 
 const rotationSpeedX = ref<number>(originalSpeedX);
 const rotationSpeedY = ref<number>(originalSpeedY);
 
-// Calculate frame-based rotation speeds from the rad/s values (assuming 20 FPS from 50ms interval)
-const FPS = 20;
-let ROTATION_SPEED_A = originalSpeedX / FPS; // Convert rad/s to rad/frame for A
-let ROTATION_SPEED_B = originalSpeedY / FPS; // Convert rad/s to rad/frame for B
+// Constants
+const FPS = ref<number>(20); // Make FPS reactive for template binding
+
+// Reactive rotation speeds for actual calculations
+const ROTATION_SPEED_A = ref<number>(originalSpeedX / FPS.value); // Convert rad/s to rad/frame for A
+const ROTATION_SPEED_B = ref<number>(originalSpeedY / FPS.value); // Convert rad/s to rad/frame for B
 
 const getCharDimensions = (): { charWidth: number; charHeight: number } => {
   if (!donutPreElement.value) return { charWidth: 10, charHeight: 10 }; // Fallback
@@ -242,15 +244,22 @@ const updateDimensions = () => {
 
 
 const renderFrame = () => {
-  // Skip rendering during font size recalculation
-  if (isRecalculating.value) {
-    return;
-  }
-  
-  if (!donutPreElement.value || K1.value === 0) { // Ensure K1 is initialized
-    frameContent.value = "Initializing dimensions or K1 is zero...";
-    return;
-  }
+  try {
+    // Skip rendering during font size recalculation
+    if (isRecalculating.value) {
+      return;
+    }
+    
+    if (!donutPreElement.value || K1.value === 0) { // Ensure K1 is initialized
+      frameContent.value = "Initializing dimensions or K1 is zero...";
+      return;
+    }
+    
+    // Validate screen dimensions
+    if (screenWidth.value <= 0 || screenHeight.value <= 0) {
+      frameContent.value = "Invalid screen dimensions...";
+      return;
+    }
 
   const b: number[] = []; // Z-buffer
   const z: string[] = []; // Character buffer
@@ -306,13 +315,17 @@ const renderFrame = () => {
 
   // Only auto-rotate if not dragging and not paused
   if (!isDragging.value && !isPaused.value) {
-    A.value += ROTATION_SPEED_A;
-    B.value += ROTATION_SPEED_B;
+    A.value += ROTATION_SPEED_A.value;
+    B.value += ROTATION_SPEED_B.value;
   }
   
-  // Update rotation speed display based on current state
-  // Note: rotationSpeedX and rotationSpeedY are now controlled by sliders
-  // and represent the actual display values, no need to modify them here
+    // Update rotation speed display based on current state
+    // Note: rotationSpeedX and rotationSpeedY are now controlled by sliders
+    // and represent the actual display values, no need to modify them here
+  } catch (error) {
+    console.error('Error in renderFrame:', error);
+    frameContent.value = "Rendering error occurred...";
+  }
 };
 
 // Mouse event handlers
@@ -409,41 +422,69 @@ const handleWheel = (e: WheelEvent) => {
 
 // Slider zoom handler
 const handleSliderZoom = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  zoomFactor.value = parseFloat(target.value);
-  updateDimensions();
+  try {
+    const target = event.target as HTMLInputElement;
+    const newZoom = parseFloat(target.value);
+    if (isNaN(newZoom) || newZoom < 0.05 || newZoom > 5) return;
+    
+    zoomFactor.value = newZoom;
+    updateDimensions();
+  } catch (error) {
+    console.error('Error handling zoom slider:', error);
+  }
 };
 
 // X-axis speed slider handler
 const handleXSpeedSlider = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  const newSpeed = parseFloat(target.value);
-  rotationSpeedX.value = newSpeed;
-  // Update the actual rotation speed constant
-  const FPS = 20;
-  ROTATION_SPEED_A = newSpeed / FPS;
+  try {
+    const target = event.target as HTMLInputElement;
+    const newSpeed = parseFloat(target.value);
+    if (isNaN(newSpeed) || newSpeed < 0 || newSpeed > 1) return;
+    
+    rotationSpeedX.value = newSpeed;
+    // Update the actual rotation speed constant
+    ROTATION_SPEED_A.value = newSpeed / FPS.value;
+  } catch (error) {
+    console.error('Error handling X-axis speed slider:', error);
+  }
 };
 
 // Y-axis speed slider handler
 const handleYSpeedSlider = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  const newSpeed = parseFloat(target.value);
-  rotationSpeedY.value = newSpeed;
-  // Update the actual rotation speed constant
-  const FPS = 20;
-  ROTATION_SPEED_B = newSpeed / FPS;
+  try {
+    const target = event.target as HTMLInputElement;
+    const newSpeed = parseFloat(target.value);
+    if (isNaN(newSpeed) || newSpeed < 0 || newSpeed > 1) return;
+    
+    rotationSpeedY.value = newSpeed;
+    // Update the actual rotation speed constant
+    ROTATION_SPEED_B.value = newSpeed / FPS.value;
+  } catch (error) {
+    console.error('Error handling Y-axis speed slider:', error);
+  }
 };
 
 // Font size slider handler
 const handleFontSizeSlider = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  fontSize.value = parseInt(target.value);
-  recalculateWithNewFontSize();
+  try {
+    const target = event.target as HTMLInputElement;
+    const newSize = parseInt(target.value);
+    if (isNaN(newSize) || newSize < 4 || newSize > 30) return;
+    
+    fontSize.value = newSize;
+    recalculateWithNewFontSize();
+  } catch (error) {
+    console.error('Error handling font size slider:', error);
+  }
 };
 
 // Toggle pause function for button
 const togglePause = () => {
-  isPaused.value = !isPaused.value;
+  try {
+    isPaused.value = !isPaused.value;
+  } catch (error) {
+    console.error('Error toggling pause state:', error);
+  }
 };
 
 onMounted(() => {
