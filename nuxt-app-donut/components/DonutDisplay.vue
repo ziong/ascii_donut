@@ -410,6 +410,8 @@ const handleTouchEnd = () => {
 // Window resize handler
 const handleResize = () => {
   updateDimensions();
+  // Update zoom factor when screen size or orientation changes
+  setInitialZoomFactor();
   // nextTick ensures DOM is updated before re-render, if necessary.
   // Direct call to renderFrame should be fine here as well.
   nextTick(() => {
@@ -532,6 +534,26 @@ const togglePause = () => {
   }
 };
 
+// Function to check if device is in small screen portrait mode
+const isSmallScreenPortrait = () => {
+  if (process.client) {
+    return window.innerWidth <= 480 && window.matchMedia('(orientation: portrait)').matches;
+  }
+  return false;
+};
+
+// Function to set appropriate zoom factor based on screen size
+const setInitialZoomFactor = () => {
+  if (process.client) {
+    if (isSmallScreenPortrait()) {
+      zoomFactor.value = 0.5; // 50% zoom for small portrait screens
+    } else {
+      zoomFactor.value = 0.25; // 25% zoom for other screens
+    }
+    updateDimensions();
+  }
+};
+
 onMounted(() => {
   // Generate random rotation speeds only on client side to prevent hydration mismatch
   if (process.client) {
@@ -543,6 +565,9 @@ onMounted(() => {
     rotationSpeedY.value = randomSpeedY;
     ROTATION_SPEED_A.value = randomSpeedX / FPS.value;
     ROTATION_SPEED_B.value = randomSpeedY / FPS.value;
+    
+    // Set appropriate zoom factor for screen size
+    setInitialZoomFactor();
   }
 
   // Attach drag events only to the donut element
@@ -735,8 +760,8 @@ onUnmounted(() => {
   .font-slider-container { bottom: 50px; }
 }
 
-/* Mobile Portrait (<480px) */
-@media screen and (max-width: 480px) {
+/* Mobile Portrait Small Screens - Hide All Controls Except Status Table */
+@media screen and (max-width: 480px) and (orientation: portrait) {
   :root {
     --control-width: 100%;
     --control-spacing: 8px;
@@ -748,30 +773,14 @@ onUnmounted(() => {
     --font-size-large: 12px;
   }
   
+  /* Hide all control containers */
   .zoom-slider-container,
   .speed-slider-container,
-  .font-slider-container {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    top: auto;
-    background: rgba(0, 0, 0, 0.95);
-    border-top: 2px solid #00ff00;
-    border-radius: 16px 16px 0 0;
-    padding: 12px;
-    backdrop-filter: blur(6px);
-    justify-content: center;
-    flex-direction: column;
-    gap: 10px;
-    transform: translateY(100%);
-    animation: slideUp 0.3s ease forwards;
+  .font-slider-container,
+  .pause-button-container,
+  .keybindings-table {
+    display: none !important;
   }
-  
-  .zoom-slider-container { bottom: 160px; }
-  .speed-slider-container.x-speed { bottom: 120px; }
-  .speed-slider-container.y-speed { bottom: 80px; }
-  .font-slider-container { bottom: 40px; }
 }
 
 /* Pause Button Container - Responsive */
@@ -1082,6 +1091,21 @@ onUnmounted(() => {
     padding: 10px;
     font-size: 10px;
     border-radius: 8px;
+  }
+}
+
+/* Status Table - Small Portrait Screens: Move to Bottom */
+@media screen and (max-width: 480px) and (orientation: portrait) {
+  .status-table {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 10px !important;
+    left: 10px;
+    right: 10px;
+    padding: 12px;
+    font-size: 11px;
+    border-radius: 12px;
+    z-index: 10000;
   }
 }
 
