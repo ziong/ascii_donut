@@ -69,9 +69,9 @@
       </div>
     </div>
 
-    <!-- Pause/Resume Button -->
+    <!-- Pause/Resume Button - Updated Width -->
     <div class="pause-button-container">
-      <button class="pause-button" @click="togglePause">
+      <button class="pause-button wide-pause-button" @click="togglePause" style="width: 220px !important; min-width: 220px !important; max-width: 220px !important;">
         <span v-if="isPaused">▶</span>
         <span v-else>⏸</span>
       </button>
@@ -545,14 +545,16 @@ onMounted(() => {
     ROTATION_SPEED_B.value = randomSpeedY / FPS.value;
   }
 
-  // Attach to window for global mouse/touch capture and resize
-  window.addEventListener('mousedown', handleMouseDown);
+  // Attach drag events only to the donut element
+  if (donutPreElement.value) {
+    donutPreElement.value.addEventListener('mousedown', handleMouseDown);
+    donutPreElement.value.addEventListener('touchstart', handleTouchStart, { passive: false });
+  }
+  
+  // Global events for drag continuation and other interactions
   window.addEventListener('mousemove', handleMouseMove);
   window.addEventListener('mouseup', handleMouseUpOrLeave);
   window.addEventListener('mouseleave', handleMouseUpOrLeave);
-  
-  // Touch event listeners
-  window.addEventListener('touchstart', handleTouchStart, { passive: false });
   window.addEventListener('touchmove', handleTouchMove, { passive: false });
   window.addEventListener('touchend', handleTouchEnd, { passive: false });
   window.addEventListener('touchcancel', handleTouchEnd, { passive: false });
@@ -578,14 +580,16 @@ onUnmounted(() => {
     clearInterval(renderInterval);
     renderInterval = null;
   }
-  // Remove mouse event listeners
-  window.removeEventListener('mousedown', handleMouseDown);
+  // Remove donut-specific event listeners
+  if (donutPreElement.value) {
+    donutPreElement.value.removeEventListener('mousedown', handleMouseDown);
+    donutPreElement.value.removeEventListener('touchstart', handleTouchStart);
+  }
+  
+  // Remove global event listeners
   window.removeEventListener('mousemove', handleMouseMove);
   window.removeEventListener('mouseup', handleMouseUpOrLeave);
   window.removeEventListener('mouseleave', handleMouseUpOrLeave);
-  
-  // Remove touch event listeners
-  window.removeEventListener('touchstart', handleTouchStart);
   window.removeEventListener('touchmove', handleTouchMove);
   window.removeEventListener('touchend', handleTouchEnd);
   window.removeEventListener('touchcancel', handleTouchEnd);
@@ -652,7 +656,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: row;
   align-items: center;
-  z-index: 1000;
+  z-index: 9999;
   width: var(--control-width);
   height: auto;
   pointer-events: auto;
@@ -776,7 +780,7 @@ onUnmounted(() => {
   top: 720px;
   right: var(--control-padding);
   width: var(--control-width);
-  z-index: 1000;
+  z-index: 9999;
   pointer-events: auto;
   display: flex;
   justify-content: center;
@@ -784,22 +788,24 @@ onUnmounted(() => {
 }
 
 .pause-button {
-  width: var(--slider-width);
-  height: 40px;
+  width: var(--control-width) !important;
+  max-width: var(--control-width) !important;
+  height: 50px;
   min-height: var(--touch-target-size);
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.85);
   border: 2px solid #00ff00;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 20px;
   color: #00ff00;
-  text-shadow: 0 0 3px #00ff00;
-  backdrop-filter: blur(2px);
+  text-shadow: 0 0 4px #00ff00;
+  backdrop-filter: blur(3px);
   transition: all 0.2s ease;
   font-family: 'Courier New', monospace;
+  font-weight: bold;
 }
 
 .pause-button:hover {
@@ -811,6 +817,15 @@ onUnmounted(() => {
 
 .pause-button:active {
   transform: scale(0.98);
+}
+
+/* Desktop adjustments for pause button */
+@media screen and (min-width: 769px) {
+  .pause-button {
+    width: var(--control-width) !important;
+    max-width: none !important;
+    height: 50px !important;
+  }
 }
 
 /* Tablet adjustments for pause button */
@@ -838,7 +853,8 @@ onUnmounted(() => {
   }
   
   .pause-button {
-    width: 200px;
+    width: 100%;
+    max-width: 300px;
     height: var(--touch-target-size);
     font-size: 20px;
     border-radius: 8px;
@@ -852,7 +868,8 @@ onUnmounted(() => {
   }
   
   .pause-button {
-    width: 160px;
+    width: 100%;
+    max-width: 250px;
     height: var(--touch-target-size);
     font-size: 22px;
   }
@@ -971,6 +988,9 @@ onUnmounted(() => {
   border-radius: 12px;
   border: 2px solid #00ff00;
   transition: all 0.2s ease;
+  pointer-events: auto;
+  z-index: 10000;
+  position: relative;
 }
 
 /* Touch-friendly adjustments for mobile */
@@ -1033,7 +1053,7 @@ onUnmounted(() => {
   font-size: var(--font-size-large);
   color: #00ff00;
   text-shadow: 0 0 3px #00ff00;
-  z-index: 1000;
+  z-index: 9999;
   min-width: var(--control-width);
   backdrop-filter: blur(2px);
   transition: all 0.3s ease;
@@ -1116,7 +1136,7 @@ onUnmounted(() => {
   font-size: var(--font-size-medium);
   color: #00ff00;
   text-shadow: 0 0 3px #00ff00;
-  z-index: 1000;
+  z-index: 9999;
   min-width: var(--control-width);
   backdrop-filter: blur(2px);
   transition: all 0.3s ease;
@@ -1182,5 +1202,21 @@ onUnmounted(() => {
   font-weight: normal;
   white-space: nowrap;
   font-size: 11px;
+}
+
+/* FORCE PAUSE BUTTON WIDTH - MAXIMUM SPECIFICITY */
+.donut-container .pause-button-container .pause-button.wide-pause-button {
+  width: 220px !important;
+  min-width: 220px !important;
+  max-width: 220px !important;
+  display: flex !important;
+  flex: none !important;
+}
+
+/* BACKUP FORCE RULE */
+button.pause-button.wide-pause-button {
+  width: 220px !important;
+  min-width: 220px !important;
+  max-width: 220px !important;
 }
 </style>
