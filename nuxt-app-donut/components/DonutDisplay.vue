@@ -333,37 +333,77 @@ const renderFrame = () => {
   }
 };
 
-// Mouse event handlers
-const handleMouseDown = (e: MouseEvent) => {
+// Touch and Mouse event handlers
+const handlePointerStart = (e: PointerEvent | MouseEvent) => {
   isDragging.value = true;
   lastMouseX.value = e.clientX;
   lastMouseY.value = e.clientY;
   if (donutPreElement.value) {
       donutPreElement.value.style.cursor = 'grabbing';
   }
+  
+  // Prevent default to avoid conflicts with touch gestures
+  e.preventDefault();
 };
 
-const handleMouseMove = (e: MouseEvent) => {
+const handlePointerMove = (e: PointerEvent | MouseEvent) => {
   if (isDragging.value) {
     const deltaX = e.clientX - lastMouseX.value;
     const deltaY = e.clientY - lastMouseY.value;
-    B.value += deltaX / 200; // Adjusted sensitivity
-    A.value += deltaY / 200; // Adjusted sensitivity
+    
+    // Adjust sensitivity for touch vs mouse
+    const sensitivity = e.pointerType === 'touch' ? 300 : 200;
+    
+    B.value += deltaX / sensitivity;
+    A.value += deltaY / sensitivity;
     lastMouseX.value = e.clientX;
     lastMouseY.value = e.clientY;
-    // Optimization: render immediately during drag if not relying on interval
-    // For now, let interval handle it to keep it simple.
-    // renderFrame();
   }
 };
 
-const handleMouseUpOrLeave = () => {
+const handlePointerEnd = () => {
   if (isDragging.value) {
     isDragging.value = false;
     if (donutPreElement.value) {
         donutPreElement.value.style.cursor = 'grab';
     }
   }
+};
+
+// Legacy mouse event handlers for backwards compatibility
+const handleMouseDown = (e: MouseEvent) => handlePointerStart(e);
+const handleMouseMove = (e: MouseEvent) => handlePointerMove(e);
+const handleMouseUpOrLeave = () => handlePointerEnd();
+
+// Touch event handlers
+const handleTouchStart = (e: TouchEvent) => {
+  if (e.touches.length === 1) {
+    const touch = e.touches[0];
+    const pointerEvent = {
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      pointerType: 'touch',
+      preventDefault: () => e.preventDefault()
+    } as PointerEvent;
+    handlePointerStart(pointerEvent);
+  }
+};
+
+const handleTouchMove = (e: TouchEvent) => {
+  if (e.touches.length === 1 && isDragging.value) {
+    const touch = e.touches[0];
+    const pointerEvent = {
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      pointerType: 'touch',
+      preventDefault: () => e.preventDefault()
+    } as PointerEvent;
+    handlePointerMove(pointerEvent);
+  }
+};
+
+const handleTouchEnd = () => {
+  handlePointerEnd();
 };
 
 
@@ -505,11 +545,19 @@ onMounted(() => {
     ROTATION_SPEED_B.value = randomSpeedY / FPS.value;
   }
 
-  // Attach to window for global mouse capture and resize
+  // Attach to window for global mouse/touch capture and resize
   window.addEventListener('mousedown', handleMouseDown);
   window.addEventListener('mousemove', handleMouseMove);
   window.addEventListener('mouseup', handleMouseUpOrLeave);
-  window.addEventListener('mouseleave', handleMouseUpOrLeave); // Ensure drag stops if mouse leaves window
+  window.addEventListener('mouseleave', handleMouseUpOrLeave);
+  
+  // Touch event listeners
+  window.addEventListener('touchstart', handleTouchStart, { passive: false });
+  window.addEventListener('touchmove', handleTouchMove, { passive: false });
+  window.addEventListener('touchend', handleTouchEnd, { passive: false });
+  window.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+  
+  // Other event listeners
   window.addEventListener('resize', handleResize);
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('wheel', handleWheel, { passive: false });
@@ -530,10 +578,19 @@ onUnmounted(() => {
     clearInterval(renderInterval);
     renderInterval = null;
   }
+  // Remove mouse event listeners
   window.removeEventListener('mousedown', handleMouseDown);
   window.removeEventListener('mousemove', handleMouseMove);
   window.removeEventListener('mouseup', handleMouseUpOrLeave);
   window.removeEventListener('mouseleave', handleMouseUpOrLeave);
+  
+  // Remove touch event listeners
+  window.removeEventListener('touchstart', handleTouchStart);
+  window.removeEventListener('touchmove', handleTouchMove);
+  window.removeEventListener('touchend', handleTouchEnd);
+  window.removeEventListener('touchcancel', handleTouchEnd);
+  
+  // Remove other event listeners
   window.removeEventListener('resize', handleResize);
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('wheel', handleWheel);
@@ -574,19 +631,32 @@ onUnmounted(() => {
   cursor: grab;
 }
 
-/* Common slider container styles */
+/* Responsive Design Variables */
+:root {
+  --control-width: 220px;
+  --control-spacing: 50px;
+  --control-padding: 20px;
+  --touch-target-size: 44px;
+  --slider-width: 120px;
+  --font-size-small: 10px;
+  --font-size-medium: 12px;
+  --font-size-large: 14px;
+}
+
+/* Common slider container styles - Desktop First */
 .zoom-slider-container,
 .speed-slider-container,
 .font-slider-container {
   position: absolute;
-  right: 20px;
+  right: var(--control-padding);
   display: flex;
   flex-direction: row;
   align-items: center;
   z-index: 1000;
-  width: 220px;
+  width: var(--control-width);
   height: auto;
   pointer-events: auto;
+  transition: all 0.3s ease;
 }
 
 .zoom-slider-container {
@@ -605,21 +675,118 @@ onUnmounted(() => {
   top: 670px;
 }
 
-/* Pause Button Container */
+/* Tablet Styles (768px - 1200px) */
+@media screen and (max-width: 1200px) and (min-width: 768px) {
+  :root {
+    --control-width: 180px;
+    --control-spacing: 40px;
+    --control-padding: 15px;
+    --slider-width: 100px;
+    --font-size-small: 9px;
+    --font-size-medium: 11px;
+    --font-size-large: 13px;
+  }
+  
+  .zoom-slider-container { top: 480px; }
+  .speed-slider-container.x-speed { top: 520px; }
+  .speed-slider-container.y-speed { top: 560px; }
+  .font-slider-container { top: 600px; }
+}
+
+/* Mobile Landscape (480px - 768px) */
+@media screen and (max-width: 768px) and (min-width: 480px) {
+  :root {
+    --control-width: 100%;
+    --control-spacing: 10px;
+    --control-padding: 10px;
+    --slider-width: 150px;
+    --touch-target-size: 48px;
+  }
+  
+  .zoom-slider-container,
+  .speed-slider-container,
+  .font-slider-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    background: rgba(0, 0, 0, 0.9);
+    border-top: 2px solid #00ff00;
+    border-radius: 12px 12px 0 0;
+    padding: 15px;
+    backdrop-filter: blur(4px);
+    justify-content: center;
+    transform: translateY(100%);
+    animation: slideUp 0.3s ease forwards;
+  }
+  
+  @keyframes slideUp {
+    to { transform: translateY(0); }
+  }
+  
+  .zoom-slider-container { bottom: 200px; }
+  .speed-slider-container.x-speed { bottom: 150px; }
+  .speed-slider-container.y-speed { bottom: 100px; }
+  .font-slider-container { bottom: 50px; }
+}
+
+/* Mobile Portrait (<480px) */
+@media screen and (max-width: 480px) {
+  :root {
+    --control-width: 100%;
+    --control-spacing: 8px;
+    --control-padding: 8px;
+    --slider-width: 120px;
+    --touch-target-size: 50px;
+    --font-size-small: 8px;
+    --font-size-medium: 10px;
+    --font-size-large: 12px;
+  }
+  
+  .zoom-slider-container,
+  .speed-slider-container,
+  .font-slider-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    background: rgba(0, 0, 0, 0.95);
+    border-top: 2px solid #00ff00;
+    border-radius: 16px 16px 0 0;
+    padding: 12px;
+    backdrop-filter: blur(6px);
+    justify-content: center;
+    flex-direction: column;
+    gap: 10px;
+    transform: translateY(100%);
+    animation: slideUp 0.3s ease forwards;
+  }
+  
+  .zoom-slider-container { bottom: 160px; }
+  .speed-slider-container.x-speed { bottom: 120px; }
+  .speed-slider-container.y-speed { bottom: 80px; }
+  .font-slider-container { bottom: 40px; }
+}
+
+/* Pause Button Container - Responsive */
 .pause-button-container {
   position: absolute;
   top: 720px;
-  right: 20px;
-  width: 220px;
+  right: var(--control-padding);
+  width: var(--control-width);
   z-index: 1000;
   pointer-events: auto;
   display: flex;
   justify-content: center;
+  transition: all 0.3s ease;
 }
 
 .pause-button {
-  width: 120px;
+  width: var(--slider-width);
   height: 40px;
+  min-height: var(--touch-target-size);
   background: rgba(0, 0, 0, 0.8);
   border: 2px solid #00ff00;
   border-radius: 6px;
@@ -644,6 +811,51 @@ onUnmounted(() => {
 
 .pause-button:active {
   transform: scale(0.98);
+}
+
+/* Tablet adjustments for pause button */
+@media screen and (max-width: 1200px) and (min-width: 768px) {
+  .pause-button-container {
+    top: 640px;
+  }
+}
+
+/* Mobile adjustments for pause button */
+@media screen and (max-width: 768px) {
+  .pause-button-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    background: rgba(0, 0, 0, 0.9);
+    border-top: 2px solid #00ff00;
+    border-radius: 12px 12px 0 0;
+    padding: 15px;
+    backdrop-filter: blur(4px);
+    transform: translateY(100%);
+    animation: slideUp 0.3s ease forwards;
+  }
+  
+  .pause-button {
+    width: 200px;
+    height: var(--touch-target-size);
+    font-size: 20px;
+    border-radius: 8px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .pause-button-container {
+    padding: 12px;
+    border-radius: 16px 16px 0 0;
+  }
+  
+  .pause-button {
+    width: 160px;
+    height: var(--touch-target-size);
+    font-size: 22px;
+  }
 }
 
 .zoom-slider {
@@ -673,18 +885,22 @@ onUnmounted(() => {
 .font-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   background: #00ff00;
   border-radius: 50%;
   cursor: pointer;
-  border: 1px solid #00aa00;
+  border: 2px solid #00aa00;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 255, 0, 0.3);
 }
 
 .zoom-slider::-webkit-slider-thumb:hover,
 .speed-slider::-webkit-slider-thumb:hover,
 .font-slider::-webkit-slider-thumb:hover {
   background: #44ff44;
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 255, 0, 0.5);
 }
 
 /* Firefox - Common styles */
@@ -701,12 +917,33 @@ onUnmounted(() => {
 .zoom-slider::-moz-range-thumb,
 .speed-slider::-moz-range-thumb,
 .font-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   background: #00ff00;
   border-radius: 50%;
   cursor: pointer;
-  border: 1px solid #00aa00;
+  border: 2px solid #00aa00;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 255, 0, 0.3);
+}
+
+/* Mobile touch adjustments for thumbs */
+@media screen and (max-width: 768px) {
+  .zoom-slider::-webkit-slider-thumb,
+  .speed-slider::-webkit-slider-thumb,
+  .font-slider::-webkit-slider-thumb {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #00aa00;
+  }
+  
+  .zoom-slider::-moz-range-thumb,
+  .speed-slider::-moz-range-thumb,
+  .font-slider::-moz-range-thumb {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #00aa00;
+  }
 }
 
 .zoom-label {
@@ -720,22 +957,33 @@ onUnmounted(() => {
   color: #44ff44;
 }
 
-/* Common slider styles */
+/* Common slider styles - Responsive */
 .zoom-slider,
 .speed-slider,
 .font-slider {
-  width: 120px;
-  height: 20px;
+  width: var(--slider-width);
+  height: 24px;
   background: #333;
   outline: none;
   cursor: pointer;
   -webkit-appearance: none;
   appearance: none;
-  border-radius: 10px;
-  border: 1px solid #00ff00;
+  border-radius: 12px;
+  border: 2px solid #00ff00;
+  transition: all 0.2s ease;
 }
 
-/* Common label styles */
+/* Touch-friendly adjustments for mobile */
+@media screen and (max-width: 768px) {
+  .zoom-slider,
+  .speed-slider,
+  .font-slider {
+    height: 32px;
+    border-radius: 16px;
+  }
+}
+
+/* Common label styles - Responsive */
 .zoom-labels,
 .speed-labels,
 .font-labels {
@@ -743,7 +991,8 @@ onUnmounted(() => {
   align-items: center;
   margin-left: 8px;
   font-family: 'Courier New', monospace;
-  font-size: 10px;
+  font-size: var(--font-size-small);
+  transition: all 0.2s ease;
 }
 
 .zoom-labels {
@@ -771,22 +1020,49 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-/* Status Table Styles */
+/* Status Table Styles - Responsive */
 .status-table {
   position: absolute;
   top: 20px;
-  right: 20px;
+  right: var(--control-padding);
   background: rgba(0, 0, 0, 0.8);
   border: 2px solid #00ff00;
   border-radius: 6px;
   padding: 16px;
   font-family: 'Courier New', monospace;
-  font-size: 14px;
+  font-size: var(--font-size-large);
   color: #00ff00;
   text-shadow: 0 0 3px #00ff00;
   z-index: 1000;
-  min-width: 220px;
+  min-width: var(--control-width);
   backdrop-filter: blur(2px);
+  transition: all 0.3s ease;
+}
+
+/* Mobile responsive adjustments for status table */
+@media screen and (max-width: 768px) {
+  .status-table {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    width: auto;
+    min-width: auto;
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 12px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .status-table {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    padding: 10px;
+    font-size: 10px;
+    border-radius: 8px;
+  }
 }
 
 .status-header {
@@ -827,22 +1103,47 @@ onUnmounted(() => {
   font-size: 13px;
 }
 
-/* Key Bindings Table Styles */
+/* Key Bindings Table Styles - Responsive */
 .keybindings-table {
   position: absolute;
   top: 280px;
-  right: 20px;
+  right: var(--control-padding);
   background: rgba(0, 0, 0, 0.8);
   border: 2px solid #00ff00;
   border-radius: 6px;
   padding: 16px;
   font-family: 'Courier New', monospace;
-  font-size: 12px;
+  font-size: var(--font-size-medium);
   color: #00ff00;
   text-shadow: 0 0 3px #00ff00;
   z-index: 1000;
-  min-width: 220px;
+  min-width: var(--control-width);
   backdrop-filter: blur(2px);
+  transition: all 0.3s ease;
+}
+
+/* Mobile responsive adjustments for key bindings table */
+@media screen and (max-width: 768px) {
+  .keybindings-table {
+    display: none; /* Hide on mobile to save space */
+  }
+}
+
+/* Show key bindings on larger mobiles if space allows */
+@media screen and (max-width: 768px) and (min-height: 800px) {
+  .keybindings-table {
+    display: block;
+    position: fixed;
+    bottom: 300px;
+    left: 20px;
+    right: 20px;
+    top: auto;
+    width: auto;
+    min-width: auto;
+    border-radius: 12px;
+    padding: 8px;
+    font-size: 10px;
+  }
 }
 
 .keybindings-header {
