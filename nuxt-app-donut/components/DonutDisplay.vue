@@ -183,20 +183,20 @@ const R1 = 1;
 const R2 = 2;
 const K2 = 5;
 
-// Random rotation speeds in rad/s (final display values) - between 0.1 and 1
-const originalSpeedX = Math.random() * 0.9 + 0.1; // X-axis rotation speed (0.1 to 1 rad/s)
-const originalSpeedY = Math.random() * 0.9 + 0.1; // Y-axis rotation speed (0.1 to 1 rad/s)
+// Default rotation speeds (consistent between server and client)
+const defaultSpeedX = 0.5; // Default X-axis rotation speed
+const defaultSpeedY = 0.3; // Default Y-axis rotation speed
 
 // Display variables for status table
-const rotationSpeedX = ref<number>(originalSpeedX);
-const rotationSpeedY = ref<number>(originalSpeedY);
+const rotationSpeedX = ref<number>(defaultSpeedX);
+const rotationSpeedY = ref<number>(defaultSpeedY);
 
 // Constants
 const FPS = ref<number>(20); // Make FPS reactive for template binding
 
 // Reactive rotation speeds for actual calculations
-const ROTATION_SPEED_A = ref<number>(originalSpeedX / FPS.value); // Convert rad/s to rad/frame for A
-const ROTATION_SPEED_B = ref<number>(originalSpeedY / FPS.value); // Convert rad/s to rad/frame for B
+const ROTATION_SPEED_A = ref<number>(defaultSpeedX / FPS.value); // Convert rad/s to rad/frame for A
+const ROTATION_SPEED_B = ref<number>(defaultSpeedY / FPS.value); // Convert rad/s to rad/frame for B
 
 const getCharDimensions = (): { charWidth: number; charHeight: number } => {
   if (!donutPreElement.value) return { charWidth: 10, charHeight: 10 }; // Fallback
@@ -221,7 +221,7 @@ const getCharDimensions = (): { charWidth: number; charHeight: number } => {
 };
 
 const updateDimensions = () => {
-  if (typeof window === 'undefined' || !donutPreElement.value) return;
+  if (!process.client || typeof window === 'undefined' || !donutPreElement.value) return;
 
   const { charWidth, charHeight } = getCharDimensions();
 
@@ -245,6 +245,11 @@ const updateDimensions = () => {
 
 const renderFrame = () => {
   try {
+    // Only run on client side
+    if (!process.client) {
+      return;
+    }
+    
     // Skip rendering during font size recalculation
     if (isRecalculating.value) {
       return;
@@ -488,6 +493,18 @@ const togglePause = () => {
 };
 
 onMounted(() => {
+  // Generate random rotation speeds only on client side to prevent hydration mismatch
+  if (process.client) {
+    const randomSpeedX = Math.random() * 0.9 + 0.1; // X-axis rotation speed (0.1 to 1 rad/s)
+    const randomSpeedY = Math.random() * 0.9 + 0.1; // Y-axis rotation speed (0.1 to 1 rad/s)
+    
+    // Update reactive values with random speeds
+    rotationSpeedX.value = randomSpeedX;
+    rotationSpeedY.value = randomSpeedY;
+    ROTATION_SPEED_A.value = randomSpeedX / FPS.value;
+    ROTATION_SPEED_B.value = randomSpeedY / FPS.value;
+  }
+
   // Attach to window for global mouse capture and resize
   window.addEventListener('mousedown', handleMouseDown);
   window.addEventListener('mousemove', handleMouseMove);

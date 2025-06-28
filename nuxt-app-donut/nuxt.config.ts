@@ -18,21 +18,19 @@ export default defineNuxtConfig({
   nitro: {
     devServer: {
       host: '0.0.0.0',
-      port: 3080
+      port: 3000
     }
   },
   vite: {
     server: {
       host: '0.0.0.0',
-      port: 3080,
-      // Configure HMR for Replit or similar environments
+      port: 3000,
+      // Configure HMR for local development
       hmr: {
-        protocol: 'wss', // Use 'wss' for HTTPS, 'ws' for HTTP
-        // clientPort: 443 // Usually not needed if host and protocol are correct
+        protocol: 'ws', // Use 'ws' for local HTTP development
+        port: 3000
       },
-      // Allow requests from any host.
-      // This is generally acceptable for development in trusted environments like Replit.
-      // Be cautious if deploying to a more open or production environment.
+      // Allow requests from any host for development
       allowedHosts: ['*'],
     }
   }
