@@ -192,6 +192,10 @@ const fontSizeSensitivity = 3; // pixels of movement per font size unit
 // Store previous touch positions for gesture direction analysis
 const previousTouches = ref<Touch[]>([]);
 
+// Double tap detection state
+const lastTapTime = ref<number>(0);
+const doubleTapDelay = 300; // milliseconds
+
 // Animation timer
 let renderInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -461,6 +465,22 @@ const handleTouchStart = (e: TouchEvent) => {
   console.log('👆 Touch start - finger count:', e.touches.length);
   
   if (e.touches.length === 1) {
+    // Single touch - check for double tap first
+    const currentTime = Date.now();
+    const timeSinceLastTap = currentTime - lastTapTime.value;
+    
+    if (timeSinceLastTap < doubleTapDelay) {
+      // Double tap detected!
+      console.log('👆👆 Double tap detected - toggling pause');
+      togglePause();
+      lastTapTime.value = 0; // Reset to prevent triple tap
+      e.preventDefault();
+      return;
+    }
+    
+    // Store tap time for potential double tap
+    lastTapTime.value = currentTime;
+    
     // Single touch - handle rotation
     console.log('📱 Single touch - starting rotation');
     const touch = e.touches[0];
@@ -1009,6 +1029,11 @@ onUnmounted(() => {
   .pause-button-container,
   .keybindings-table {
     display: none !important;
+  }
+  
+  /* Move donut higher on small screens for better visibility */
+  .donut-pre-tag {
+    top: -15vh !important; /* Move up by 15% of viewport height */
   }
 }
 
