@@ -77,6 +77,45 @@
       </button>
     </div>
     
+    <!-- Help Icon (only visible in small screen portrait mode) -->
+    <div class="help-icon-container">
+      <button class="help-icon" @click="openGestureHelp" title="Gesture Help">
+        !
+      </button>
+    </div>
+
+    <!-- Gesture Help Popup Modal -->
+    <div v-if="showGestureHelp" class="gesture-help-overlay" @click="closeGestureHelp">
+      <div class="gesture-help-modal" @click.stop>
+        <div class="gesture-help-header">
+          <span class="gesture-help-title">GESTURE GUIDE</span>
+          <button class="gesture-help-close" @click="closeGestureHelp">×</button>
+        </div>
+        <div class="gesture-help-content">
+          <table class="gesture-help-table">
+            <tbody>
+              <tr>
+                <td class="gesture-label">1-FINGER DRAG:</td>
+                <td class="gesture-description">ROTATE DONUT</td>
+              </tr>
+              <tr>
+                <td class="gesture-label">2-FINGER PINCH:</td>
+                <td class="gesture-description">ZOOM IN/OUT</td>
+              </tr>
+              <tr>
+                <td class="gesture-label">3-FINGER SWIPE:</td>
+                <td class="gesture-description">FONT SIZE ↕</td>
+              </tr>
+              <tr>
+                <td class="gesture-label">DOUBLE-TAP:</td>
+                <td class="gesture-description">PAUSE/RESUME</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- Status Table -->
     <div class="status-table">
       <div class="status-header">DONUT STATUS</div>
@@ -187,6 +226,10 @@ const lastPinchDistance = ref<number>(0);
 const isFontSizing = ref<boolean>(false);
 const initialFontTouchY = ref<number>(0);
 const initialFontSize = ref<number>(0);
+
+// Help popup state
+const showGestureHelp = ref<boolean>(false);
+const wasRunningBeforeHelp = ref<boolean>(false);
 const fontSizeSensitivity = 3; // pixels of movement per font size unit
 
 // Store previous touch positions for gesture direction analysis
@@ -780,6 +823,39 @@ const togglePause = () => {
     isPaused.value = !isPaused.value;
   } catch (error) {
     console.error('Error toggling pause state:', error);
+  }
+};
+
+// Open gesture help popup
+const openGestureHelp = () => {
+  try {
+    // Store current animation state
+    wasRunningBeforeHelp.value = !isPaused.value;
+    
+    // Pause animation if it's running
+    if (!isPaused.value) {
+      isPaused.value = true;
+    }
+    
+    // Show help popup
+    showGestureHelp.value = true;
+  } catch (error) {
+    console.error('Error opening gesture help:', error);
+  }
+};
+
+// Close gesture help popup
+const closeGestureHelp = () => {
+  try {
+    // Hide help popup
+    showGestureHelp.value = false;
+    
+    // Restore previous animation state
+    if (wasRunningBeforeHelp.value) {
+      isPaused.value = false;
+    }
+  } catch (error) {
+    console.error('Error closing gesture help:', error);
   }
 };
 
@@ -1496,5 +1572,206 @@ button.pause-button.wide-pause-button {
   width: 220px !important;
   min-width: 220px !important;
   max-width: 220px !important;
+}
+
+/* Help Icon Styles - Only visible in small screen portrait mode */
+.help-icon-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  display: none; /* Hidden by default */
+  pointer-events: auto;
+}
+
+/* Show help icon only in small screen portrait mode */
+@media screen and (max-width: 480px) and (orientation: portrait) {
+  .help-icon-container {
+    display: block !important;
+  }
+}
+
+.help-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.9);
+  border: 2px solid #00ff00;
+  color: #00ff00;
+  font-family: 'Courier New', monospace;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  text-shadow: 0 0 4px #00ff00;
+  backdrop-filter: blur(3px);
+  box-shadow: 0 2px 8px rgba(0, 255, 0, 0.3);
+}
+
+.help-icon:hover {
+  background: rgba(0, 255, 0, 0.1);
+  border-color: #44ff44;
+  color: #44ff44;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 255, 0, 0.5);
+}
+
+.help-icon:active {
+  transform: scale(0.95);
+}
+
+/* Gesture Help Modal Styles */
+.gesture-help-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(5px);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.gesture-help-modal {
+  background: rgba(0, 0, 0, 0.95);
+  border: 2px solid #00ff00;
+  border-radius: 12px;
+  max-width: 400px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 255, 0, 0.3);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to { 
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.gesture-help-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 20px 15px 20px;
+  border-bottom: 2px solid #00ff00;
+}
+
+.gesture-help-title {
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  font-weight: bold;
+  color: #00ff00;
+  text-shadow: 0 0 4px #00ff00;
+  letter-spacing: 1.5px;
+}
+
+.gesture-help-close {
+  background: none;
+  border: 2px solid #00ff00;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  color: #00ff00;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-family: Arial, sans-serif;
+}
+
+.gesture-help-close:hover {
+  background: rgba(255, 0, 0, 0.1);
+  border-color: #ff4444;
+  color: #ff4444;
+  transform: scale(1.1);
+}
+
+.gesture-help-content {
+  padding: 20px;
+}
+
+.gesture-help-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Courier New', monospace;
+}
+
+.gesture-help-table tr {
+  margin: 8px 0;
+}
+
+.gesture-label {
+  text-align: left;
+  padding: 8px 12px 8px 0;
+  font-weight: bold;
+  color: #00aa00;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.gesture-description {
+  text-align: right;
+  padding: 8px 0 8px 12px;
+  color: #44ff44;
+  font-weight: normal;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* Responsive adjustments for gesture help modal */
+@media screen and (max-width: 480px) {
+  .gesture-help-overlay {
+    padding: 15px;
+  }
+  
+  .gesture-help-modal {
+    max-width: 100%;
+    border-radius: 8px;
+  }
+  
+  .gesture-help-header {
+    padding: 15px;
+  }
+  
+  .gesture-help-title {
+    font-size: 14px;
+  }
+  
+  .gesture-help-content {
+    padding: 15px;
+  }
+  
+  .gesture-label,
+  .gesture-description {
+    font-size: 12px;
+    padding: 6px 8px 6px 0;
+  }
+  
+  .gesture-description {
+    padding: 6px 0 6px 8px;
+  }
 }
 </style>
