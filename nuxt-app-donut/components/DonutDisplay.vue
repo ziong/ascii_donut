@@ -472,31 +472,20 @@ const handleTouchStart = (e: TouchEvent) => {
     } as PointerEvent;
     handlePointerStart(pointerEvent);
   } else if (e.touches.length === 2) {
-    // Two fingers - could be pinch zoom or font size gesture
-    console.log('🤏 Two fingers detected - analyzing gesture intent');
+    // Two fingers - pinch zoom gesture
+    console.log('🤏 Two fingers detected - starting pinch zoom gesture');
     isDragging.value = false; // Stop any rotation
-    
-    // Store current touches for direction analysis
-    previousTouches.value = Array.from(e.touches);
-    
-    // Initialize both gesture types (will determine which one based on movement)
-    const distance = calculatePinchDistance(e.touches[0], e.touches[1]);
-    const avgY = calculateAverageY(e.touches[0], e.touches[1]);
+    isPinching.value = true; // Enable pinch mode
     
     // Initialize pinch state
+    const distance = calculatePinchDistance(e.touches[0], e.touches[1]);
     initialPinchDistance.value = distance;
     initialZoomFactor.value = zoomFactor.value;
     lastPinchDistance.value = distance;
     
-    // Initialize font size state
-    initialFontTouchY.value = avgY;
-    initialFontSize.value = fontSize.value;
-    
-    console.log('🎯 Multi-touch gesture initialized:', {
+    console.log('🎯 Pinch zoom gesture initialized:', {
       initialDistance: distance.toFixed(2),
-      initialZoom: zoomFactor.value.toFixed(3),
-      initialFontY: avgY.toFixed(1),
-      initialFontSize: fontSize.value + 'px'
+      initialZoom: zoomFactor.value.toFixed(3)
     });
     
     e.preventDefault(); // Prevent browser zooming
