@@ -99,11 +99,11 @@
                 <td class="gesture-description">ROTATE DONUT</td>
               </tr>
               <tr>
-                <td class="gesture-label">2-FINGER PINCH:</td>
+                <td class="gesture-label">2-FINGERS PINCH:</td>
                 <td class="gesture-description">ZOOM IN/OUT</td>
               </tr>
               <tr>
-                <td class="gesture-label">3-FINGER SWIPE:</td>
+                <td class="gesture-label">3-FINGERS SWIPE UP/DOWN:</td>
                 <td class="gesture-description">FONT SIZE ↕</td>
               </tr>
               <tr>
