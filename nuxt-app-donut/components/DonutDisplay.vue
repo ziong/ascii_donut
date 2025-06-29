@@ -98,6 +98,10 @@
             <td class="status-label">STATUS:</td>
             <td class="status-value">{{ isPaused ? 'PAUSED' : 'ROTATING' }}</td>
           </tr>
+          <tr v-if="isPinching">
+            <td class="status-label">GESTURE:</td>
+            <td class="status-value">🤏 PINCHING</td>
+          </tr>
           <tr>
             <td class="status-label">ZOOM:</td>
             <td class="status-value">{{ (zoomFactor * 100).toFixed(0) }}%</td>
@@ -168,6 +172,12 @@ const fontSize = ref<number>(15); // Font size in pixels
 const isDragging = ref<boolean>(false);
 const lastMouseX = ref<number>(0);
 const lastMouseY = ref<number>(0);
+
+// Multi-touch pinch state
+const isPinching = ref<boolean>(false);
+const initialPinchDistance = ref<number>(0);
+const initialZoomFactor = ref<number>(0);
+const lastPinchDistance = ref<number>(0);
 
 // Animation timer
 let renderInterval: ReturnType<typeof setInterval> | null = null;
@@ -375,9 +385,31 @@ const handleMouseDown = (e: MouseEvent) => handlePointerStart(e);
 const handleMouseMove = (e: MouseEvent) => handlePointerMove(e);
 const handleMouseUpOrLeave = () => handlePointerEnd();
 
+// Pinch distance calculation utility
+const calculatePinchDistance = (touch1: Touch, touch2: Touch): number => {
+  const deltaX = touch2.clientX - touch1.clientX;
+  const deltaY = touch2.clientY - touch1.clientY;
+  const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+  
+  // Debug logging
+  console.log('🤏 Pinch distance calculation:', {
+    touch1: { x: touch1.clientX, y: touch1.clientY },
+    touch2: { x: touch2.clientX, y: touch2.clientY },
+    deltaX,
+    deltaY,
+    distance: distance.toFixed(2)
+  });
+  
+  return distance;
+};
+
 // Touch event handlers
 const handleTouchStart = (e: TouchEvent) => {
+  console.log('👆 Touch start - finger count:', e.touches.length);
+  
   if (e.touches.length === 1) {
+    // Single touch - handle rotation
+    console.log('📱 Single touch - starting rotation');
     const touch = e.touches[0];
     const pointerEvent = {
       clientX: touch.clientX,
@@ -386,11 +418,33 @@ const handleTouchStart = (e: TouchEvent) => {
       preventDefault: () => e.preventDefault()
     } as PointerEvent;
     handlePointerStart(pointerEvent);
+  } else if (e.touches.length === 2) {
+    // Two fingers - start pinch gesture
+    console.log('🤏 Two fingers detected - starting pinch gesture');
+    isPinching.value = true;
+    isDragging.value = false; // Stop any rotation
+    
+    const distance = calculatePinchDistance(e.touches[0], e.touches[1]);
+    initialPinchDistance.value = distance;
+    initialZoomFactor.value = zoomFactor.value;
+    lastPinchDistance.value = distance;
+    
+    console.log('🎯 Pinch gesture initialized:', {
+      initialDistance: distance.toFixed(2),
+      initialZoom: zoomFactor.value.toFixed(3),
+      currentZoom: zoomFactor.value.toFixed(3)
+    });
+    
+    e.preventDefault(); // Prevent browser zooming
+  } else {
+    // Three or more fingers - ignore
+    console.log('✋ Too many fingers (' + e.touches.length + ') - ignoring gesture');
   }
 };
 
 const handleTouchMove = (e: TouchEvent) => {
-  if (e.touches.length === 1 && isDragging.value) {
+  if (e.touches.length === 1 && isDragging.value && !isPinching.value) {
+    // Single touch rotation (only if not pinching)
     const touch = e.touches[0];
     const pointerEvent = {
       clientX: touch.clientX,
@@ -399,11 +453,64 @@ const handleTouchMove = (e: TouchEvent) => {
       preventDefault: () => e.preventDefault()
     } as PointerEvent;
     handlePointerMove(pointerEvent);
+  } else if (e.touches.length === 2 && isPinching.value) {
+    // Two finger pinch gesture
+    const currentDistance = calculatePinchDistance(e.touches[0], e.touches[1]);
+    
+    // Calculate zoom factor based on pinch ratio
+    const pinchRatio = currentDistance / initialPinchDistance.value;
+    const newZoomFactor = initialZoomFactor.value * pinchRatio;
+    
+    // Apply zoom bounds
+    const boundedZoom = Math.max(0.05, Math.min(5, newZoomFactor));
+    
+    console.log('🔍 Pinch zoom update:', {
+      currentDistance: currentDistance.toFixed(2),
+      initialDistance: initialPinchDistance.value.toFixed(2),
+      pinchRatio: pinchRatio.toFixed(3),
+      newZoom: newZoomFactor.toFixed(3),
+      boundedZoom: boundedZoom.toFixed(3),
+      oldZoom: zoomFactor.value.toFixed(3)
+    });
+    
+    // Update zoom factor and dimensions
+    zoomFactor.value = boundedZoom;
+    updateDimensions();
+    
+    lastPinchDistance.value = currentDistance;
+    e.preventDefault(); // Prevent browser zooming
   }
 };
 
-const handleTouchEnd = () => {
-  handlePointerEnd();
+const handleTouchEnd = (e: TouchEvent) => {
+  console.log('🖐️ Touch end - remaining fingers:', e.touches.length);
+  
+  if (isPinching.value) {
+    console.log('🎯 Ending pinch gesture');
+    isPinching.value = false;
+    initialPinchDistance.value = 0;
+    initialZoomFactor.value = 0;
+    lastPinchDistance.value = 0;
+    
+    console.log('✅ Pinch gesture ended - final zoom:', zoomFactor.value.toFixed(3));
+  }
+  
+  // If there's still one finger, potentially start rotation
+  if (e.touches.length === 1 && !isPinching.value) {
+    console.log('🔄 Transitioning to single touch rotation');
+    const touch = e.touches[0];
+    const pointerEvent = {
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      pointerType: 'touch',
+      preventDefault: () => e.preventDefault()
+    } as PointerEvent;
+    handlePointerStart(pointerEvent);
+  } else if (e.touches.length === 0) {
+    // All fingers lifted
+    console.log('👋 All fingers lifted - ending all gestures');
+    handlePointerEnd();
+  }
 };
 
 
