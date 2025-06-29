@@ -102,6 +102,10 @@
             <td class="status-label">GESTURE:</td>
             <td class="status-value">🤏 PINCHING</td>
           </tr>
+          <tr v-if="isFontSizing">
+            <td class="status-label">GESTURE:</td>
+            <td class="status-value">📝 FONT SIZE</td>
+          </tr>
           <tr>
             <td class="status-label">ZOOM:</td>
             <td class="status-value">{{ (zoomFactor * 100).toFixed(0) }}%</td>
@@ -178,6 +182,15 @@ const isPinching = ref<boolean>(false);
 const initialPinchDistance = ref<number>(0);
 const initialZoomFactor = ref<number>(0);
 const lastPinchDistance = ref<number>(0);
+
+// Multi-touch font size control state  
+const isFontSizing = ref<boolean>(false);
+const initialFontTouchY = ref<number>(0);
+const initialFontSize = ref<number>(0);
+const fontSizeSensitivity = 3; // pixels of movement per font size unit
+
+// Store previous touch positions for gesture direction analysis
+const previousTouches = ref<Touch[]>([]);
 
 // Animation timer
 let renderInterval: ReturnType<typeof setInterval> | null = null;
@@ -403,6 +416,40 @@ const calculatePinchDistance = (touch1: Touch, touch2: Touch): number => {
   return distance;
 };
 
+// Calculate average Y position of two touches for font size gestures
+const calculateAverageY = (touch1: Touch, touch2: Touch): number => {
+  return (touch1.clientY + touch2.clientY) / 2;
+};
+
+// Detect if two-finger gesture is primarily vertical (font size) vs diagonal (zoom)
+const isVerticalGesture = (touch1: Touch, touch2: Touch, previousTouch1: Touch, previousTouch2: Touch): boolean => {
+  // Calculate movement vectors
+  const movement1X = touch1.clientX - previousTouch1.clientX;
+  const movement1Y = touch1.clientY - previousTouch1.clientY;
+  const movement2X = touch2.clientX - previousTouch2.clientX;
+  const movement2Y = touch2.clientY - previousTouch2.clientY;
+  
+  // Calculate average movement
+  const avgMovementX = (movement1X + movement2X) / 2;
+  const avgMovementY = (movement1Y + movement2Y) / 2;
+  
+  // Calculate angle from horizontal (0° = horizontal, 90° = vertical)
+  const angle = Math.abs(Math.atan2(avgMovementY, avgMovementX)) * (180 / Math.PI);
+  
+  // Consider vertical if movement angle > 60° from horizontal
+  const isVertical = angle > 60;
+  
+  console.log('📐 Gesture direction analysis:', {
+    movement1: { x: movement1X.toFixed(1), y: movement1Y.toFixed(1) },
+    movement2: { x: movement2X.toFixed(1), y: movement2Y.toFixed(1) },
+    avgMovement: { x: avgMovementX.toFixed(1), y: avgMovementY.toFixed(1) },
+    angle: angle.toFixed(1) + '°',
+    isVertical
+  });
+  
+  return isVertical;
+};
+
 // Touch event handlers
 const handleTouchStart = (e: TouchEvent) => {
   console.log('👆 Touch start - finger count:', e.touches.length);
@@ -419,20 +466,31 @@ const handleTouchStart = (e: TouchEvent) => {
     } as PointerEvent;
     handlePointerStart(pointerEvent);
   } else if (e.touches.length === 2) {
-    // Two fingers - start pinch gesture
-    console.log('🤏 Two fingers detected - starting pinch gesture');
-    isPinching.value = true;
+    // Two fingers - could be pinch zoom or font size gesture
+    console.log('🤏 Two fingers detected - analyzing gesture intent');
     isDragging.value = false; // Stop any rotation
     
+    // Store current touches for direction analysis
+    previousTouches.value = Array.from(e.touches);
+    
+    // Initialize both gesture types (will determine which one based on movement)
     const distance = calculatePinchDistance(e.touches[0], e.touches[1]);
+    const avgY = calculateAverageY(e.touches[0], e.touches[1]);
+    
+    // Initialize pinch state
     initialPinchDistance.value = distance;
     initialZoomFactor.value = zoomFactor.value;
     lastPinchDistance.value = distance;
     
-    console.log('🎯 Pinch gesture initialized:', {
+    // Initialize font size state
+    initialFontTouchY.value = avgY;
+    initialFontSize.value = fontSize.value;
+    
+    console.log('🎯 Multi-touch gesture initialized:', {
       initialDistance: distance.toFixed(2),
       initialZoom: zoomFactor.value.toFixed(3),
-      currentZoom: zoomFactor.value.toFixed(3)
+      initialFontY: avgY.toFixed(1),
+      initialFontSize: fontSize.value + 'px'
     });
     
     e.preventDefault(); // Prevent browser zooming
@@ -453,31 +511,84 @@ const handleTouchMove = (e: TouchEvent) => {
       preventDefault: () => e.preventDefault()
     } as PointerEvent;
     handlePointerMove(pointerEvent);
-  } else if (e.touches.length === 2 && isPinching.value) {
-    // Two finger pinch gesture
-    const currentDistance = calculatePinchDistance(e.touches[0], e.touches[1]);
+  } else if (e.touches.length === 2 && (isPinching.value || isFontSizing.value || (!isPinching.value && !isFontSizing.value))) {
+    // Two finger gesture - determine type based on movement direction
     
-    // Calculate zoom factor based on pinch ratio
-    const pinchRatio = currentDistance / initialPinchDistance.value;
-    const newZoomFactor = initialZoomFactor.value * pinchRatio;
+    if (previousTouches.value.length === 2) {
+      // Analyze gesture direction
+      const isVertical = isVerticalGesture(
+        e.touches[0], e.touches[1], 
+        previousTouches.value[0], previousTouches.value[1]
+      );
+      
+      // Determine gesture type if not already determined
+      if (!isPinching.value && !isFontSizing.value) {
+        if (isVertical) {
+          console.log('📝 Detected vertical gesture - switching to font size mode');
+          isFontSizing.value = true;
+        } else {
+          console.log('🔍 Detected diagonal/horizontal gesture - switching to zoom mode');
+          isPinching.value = true;
+        }
+      }
+      
+      // Handle font size gesture
+      if (isFontSizing.value) {
+        const currentAvgY = calculateAverageY(e.touches[0], e.touches[1]);
+        const deltaY = initialFontTouchY.value - currentAvgY; // Inverted: up = positive = bigger
+        const fontChange = Math.round(deltaY / fontSizeSensitivity);
+        const newFontSize = initialFontSize.value + fontChange;
+        
+        // Apply font size bounds (4px - 30px)
+        const boundedFontSize = Math.max(4, Math.min(30, newFontSize));
+        
+        console.log('📝 Font size update:', {
+          currentY: currentAvgY.toFixed(1),
+          initialY: initialFontTouchY.value.toFixed(1),
+          deltaY: deltaY.toFixed(1),
+          fontChange,
+          newFontSize,
+          boundedFontSize,
+          oldFontSize: fontSize.value
+        });
+        
+        // Update font size if it changed
+        if (boundedFontSize !== fontSize.value) {
+          fontSize.value = boundedFontSize;
+          recalculateWithNewFontSize();
+        }
+      }
+      
+      // Handle pinch zoom gesture
+      if (isPinching.value) {
+        const currentDistance = calculatePinchDistance(e.touches[0], e.touches[1]);
+        
+        // Calculate zoom factor based on pinch ratio
+        const pinchRatio = currentDistance / initialPinchDistance.value;
+        const newZoomFactor = initialZoomFactor.value * pinchRatio;
+        
+        // Apply zoom bounds
+        const boundedZoom = Math.max(0.05, Math.min(5, newZoomFactor));
+        
+        console.log('🔍 Pinch zoom update:', {
+          currentDistance: currentDistance.toFixed(2),
+          initialDistance: initialPinchDistance.value.toFixed(2),
+          pinchRatio: pinchRatio.toFixed(3),
+          newZoom: newZoomFactor.toFixed(3),
+          boundedZoom: boundedZoom.toFixed(3),
+          oldZoom: zoomFactor.value.toFixed(3)
+        });
+        
+        // Update zoom factor and dimensions
+        zoomFactor.value = boundedZoom;
+        updateDimensions();
+        
+        lastPinchDistance.value = currentDistance;
+      }
+    }
     
-    // Apply zoom bounds
-    const boundedZoom = Math.max(0.05, Math.min(5, newZoomFactor));
-    
-    console.log('🔍 Pinch zoom update:', {
-      currentDistance: currentDistance.toFixed(2),
-      initialDistance: initialPinchDistance.value.toFixed(2),
-      pinchRatio: pinchRatio.toFixed(3),
-      newZoom: newZoomFactor.toFixed(3),
-      boundedZoom: boundedZoom.toFixed(3),
-      oldZoom: zoomFactor.value.toFixed(3)
-    });
-    
-    // Update zoom factor and dimensions
-    zoomFactor.value = boundedZoom;
-    updateDimensions();
-    
-    lastPinchDistance.value = currentDistance;
+    // Update previous touches for next iteration
+    previousTouches.value = Array.from(e.touches);
     e.preventDefault(); // Prevent browser zooming
   }
 };
@@ -494,6 +605,18 @@ const handleTouchEnd = (e: TouchEvent) => {
     
     console.log('✅ Pinch gesture ended - final zoom:', zoomFactor.value.toFixed(3));
   }
+  
+  if (isFontSizing.value) {
+    console.log('📝 Ending font size gesture');
+    isFontSizing.value = false;
+    initialFontTouchY.value = 0;
+    initialFontSize.value = 0;
+    
+    console.log('✅ Font size gesture ended - final size:', fontSize.value + 'px');
+  }
+  
+  // Clear previous touches
+  previousTouches.value = [];
   
   // If there's still one finger, potentially start rotation
   if (e.touches.length === 1 && !isPinching.value) {
