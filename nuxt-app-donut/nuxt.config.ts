@@ -1,6 +1,12 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   devtools: { enabled: true },
+  // Configure client-side only rendering for face-api
+  ssr: false, // Disable SSR to prevent hydration mismatches
+  // Handle face-api imports that require browser APIs
+  build: {
+    transpile: ['@vladmandic/face-api']
+  },
   app: {
     head: {
       title: 'ASCII Donut Nuxt',
@@ -18,21 +24,16 @@ export default defineNuxtConfig({
   nitro: {
     devServer: {
       host: '0.0.0.0',
-      port: 3080
+      port: 3000
     }
   },
   vite: {
     server: {
       host: '0.0.0.0',
-      port: 3080,
-      // Configure HMR for Replit or similar environments
-      hmr: {
-        protocol: 'wss', // Use 'wss' for HTTPS, 'ws' for HTTP
-        // clientPort: 443 // Usually not needed if host and protocol are correct
-      },
-      // Allow requests from any host.
-      // This is generally acceptable for development in trusted environments like Replit.
-      // Be cautious if deploying to a more open or production environment.
+      port: 3000,
+      // Simplified HMR for development
+      hmr: false, // Disable HMR to avoid WebSocket issues temporarily
+      // Allow requests from any host for development
       allowedHosts: ['*'],
     }
   }
