@@ -153,7 +153,11 @@
           </tr>
           <tr>
             <td class="key-label">D:</td>
-            <td class="key-description">DEBUG HEAD TRACKING</td>
+            <td class="key-description">HEAD TRACKING DEBUG</td>
+          </tr>
+          <tr>
+            <td class="key-label">HEAD:</td>
+            <td class="key-description">MOVE TO ROTATE</td>
           </tr>
         </tbody>
       </table>
@@ -217,8 +221,8 @@ const isRecalculating = ref<boolean>(false);
 const isPaused = ref<boolean>(false);
 
 // Head tracking state
-const headTrackingEnabled = ref<boolean>(false);
-const showHeadTrackingDebug = ref<boolean>(false);
+const headTrackingEnabled = ref<boolean>(true); // Enable head tracking by default
+const showHeadTrackingDebug = ref<boolean>(true); // Enable debug mode by default
 const isHeadTracking = ref<boolean>(false);
 const currentHeadPose = ref<{ pitch: number, yaw: number, roll: number } | null>(null);
 
@@ -513,24 +517,22 @@ const toggleHeadTracking = () => {
   }
 };
 
-const handleHeadPoseChange = (pose: { pitch: number, yaw: number, roll: number }) => {
+const handleHeadPoseChange = (pose: { pitch: number, yaw: number, roll: number, deltaX?: number, deltaY?: number }) => {
   if (!headTrackingEnabled.value || !isPaused.value) return;
   
   // Store current pose
   currentHeadPose.value = pose;
   
-  // Map head movement to donut rotation with smoothing
-  // Yaw (left-right head turn) -> B rotation (horizontal)
-  // Pitch (up-down head tilt) -> A rotation (vertical)
+  // Use delta movement for relative rotation control
+  // Right movement (positive deltaX/yaw) = clockwise rotation (positive B)
+  // Down movement (positive deltaY/pitch) = forward tilt (positive A)
   
-  // Apply sensitivity and smoothing
-  const targetB = pose.yaw * headTrackingSensitivity.value;
-  const targetA = pose.pitch * headTrackingSensitivity.value;
+  // Apply the movement delta directly to rotation with sensitivity scaling
+  const sensitivity = headTrackingSensitivity.value * 20; // Increased for delta movement
   
-  // Smooth transition to avoid jittery movement
-  const smoothingFactor = headTrackingSmoothing.value;
-  B.value += (targetB - B.value) * smoothingFactor;
-  A.value += (targetA - A.value) * smoothingFactor;
+  // Add rotation incrementally based on head movement
+  B.value += pose.yaw * sensitivity; // Yaw controls horizontal rotation
+  A.value += pose.pitch * sensitivity; // Pitch controls vertical rotation
   
   // Throttled render for responsive head tracking without overwhelming the system
   const now = Date.now();

@@ -27,13 +27,19 @@
       <!-- Head tracking data display -->
       <div class="tracking-data" v-if="showDebugInfo && headPose">
         <div class="data-row">
-          <span>Pitch: {{ headPose.pitch.toFixed(2) }}°</span>
+          <span>ΔX: {{ headPose.deltaX ? headPose.deltaX.toFixed(1) : '0' }}px</span>
         </div>
         <div class="data-row">
-          <span>Yaw: {{ headPose.yaw.toFixed(2) }}°</span>
+          <span>ΔY: {{ headPose.deltaY ? headPose.deltaY.toFixed(1) : '0' }}px</span>
         </div>
         <div class="data-row">
-          <span>Roll: {{ headPose.roll.toFixed(2) }}°</span>
+          <span>Yaw: {{ headPose.yaw.toFixed(4) }}</span>
+        </div>
+        <div class="data-row">
+          <span>Pitch: {{ headPose.pitch.toFixed(4) }}</span>
+        </div>
+        <div class="data-row" v-if="isCalibrating">
+          <span>Cal: {{ calibrationFrames }}/{{ calibrationRequired }}</span>
         </div>
       </div>
       
@@ -81,6 +87,14 @@ const isTracking = ref(false)
 const error = ref<string>('')
 const headPose = ref<{ pitch: number, yaw: number, roll: number } | null>(null)
 const statusText = ref('Initializing...')
+
+// Head movement tracking for relative motion
+const headCenter = ref<{ x: number, y: number } | null>(null)
+const lastHeadCenter = ref<{ x: number, y: number } | null>(null)
+const isCalibrating = ref(false)
+const calibrationFrames = ref(0)
+const calibrationRequired = 10 // Reduced frames needed for calibration
+let missedFrames = 0 // Track consecutive missed detections
 
 // Face-api instance and models
 let faceApi: any = null
@@ -159,36 +173,43 @@ const loadModels = async (): Promise<boolean> => {
   }
 }
 
-// Calculate head pose from landmarks
-const calculateHeadPose = (landmarks: any): { pitch: number, yaw: number, roll: number } => {
-  // Get key facial landmarks
+// Calculate head center position for relative movement tracking
+const calculateHeadCenter = (landmarks: any): { x: number, y: number } => {
+  // Use face center (average of key landmarks for stability)
   const noseTip = landmarks.positions[30] // Nose tip
   const leftEye = landmarks.positions[36] // Left eye corner
   const rightEye = landmarks.positions[45] // Right eye corner
-  const leftMouth = landmarks.positions[48] // Left mouth corner
-  const rightMouth = landmarks.positions[54] // Right mouth corner
+  const chin = landmarks.positions[8] // Chin
+  const forehead = landmarks.positions[24] // Forehead center
   
-  // Calculate basic head pose angles
-  // This is a simplified calculation - in production you'd use more sophisticated methods
+  // Calculate center as average of key facial points
+  const centerX = (noseTip.x + leftEye.x + rightEye.x + chin.x + forehead.x) / 5
+  const centerY = (noseTip.y + leftEye.y + rightEye.y + chin.y + forehead.y) / 5
   
-  // Yaw (left-right head turn)
-  const eyeCenter = {
-    x: (leftEye.x + rightEye.x) / 2,
-    y: (leftEye.y + rightEye.y) / 2
+  return { x: centerX, y: centerY }
+}
+
+// Calculate head movement delta and convert to rotation
+const calculateMovementDelta = (currentCenter: { x: number, y: number }) => {
+  if (!lastHeadCenter.value) {
+    return { deltaX: 0, deltaY: 0, pitch: 0, yaw: 0 }
   }
-  const yaw = Math.atan2(noseTip.x - eyeCenter.x, 50) * (180 / Math.PI)
   
-  // Pitch (up-down head tilt)
-  const mouthCenter = {
-    x: (leftMouth.x + rightMouth.x) / 2,
-    y: (leftMouth.y + rightMouth.y) / 2
-  }
-  const pitch = Math.atan2(eyeCenter.y - mouthCenter.y, 80) * (180 / Math.PI)
+  // Calculate pixel movement
+  const deltaX = currentCenter.x - lastHeadCenter.value.x
+  const deltaY = currentCenter.y - lastHeadCenter.value.y
   
-  // Roll (head rotation)
-  const roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * (180 / Math.PI)
+  // Convert pixel movement to rotation angles
+  // Separate sensitivity for each axis
+  const sensitivityX = 0.03 // X-axis (horizontal) sensitivity for yaw rotation
+  const sensitivityY = 0.01 // Y-axis (vertical) sensitivity for pitch rotation
   
-  return { pitch: -pitch, yaw: yaw * 2, roll }
+  // Right movement = positive yaw (clockwise rotation)
+  // Down movement = positive pitch (forward tilt)
+  const yaw = deltaX * sensitivityX
+  const pitch = deltaY * sensitivityY
+  
+  return { deltaX, deltaY, pitch, yaw }
 }
 
 // Detect faces and track head pose
@@ -204,15 +225,51 @@ const detectFaces = async () => {
       .withFaceLandmarks()
     
     if (detections && detections.length > 0) {
+      // Reset missed frames counter on successful detection
+      missedFrames = 0
+      
       // Use the first detected face
       const detection = detections[0]
       
-      // Calculate head pose from landmarks
-      const pose = calculateHeadPose(detection.landmarks)
+      // Calculate current head center position
+      const currentCenter = calculateHeadCenter(detection.landmarks)
+      headCenter.value = currentCenter
+      
+      // Handle calibration phase - only calibrate if we don't have a baseline
+      if (!lastHeadCenter.value) {
+        if (calibrationFrames.value < calibrationRequired) {
+          calibrationFrames.value++
+          isCalibrating.value = true
+          statusText.value = `Calibrating... ${calibrationFrames.value}/${calibrationRequired}`
+          lastHeadCenter.value = currentCenter
+          return
+        } else {
+          isCalibrating.value = false
+          statusText.value = 'Ready - Move your head to control rotation'
+        }
+      }
+      
+      // Calculate movement delta and emit relative movement
+      const movement = calculateMovementDelta(currentCenter)
+      
+      // Create pose object with delta movement
+      const pose = {
+        pitch: movement.pitch,
+        yaw: movement.yaw,
+        roll: 0, // Not using roll for now
+        deltaX: movement.deltaX,
+        deltaY: movement.deltaY
+      }
+      
       headPose.value = pose
       
-      // Emit pose change
-      emit('headPoseChange', pose)
+      // Only emit if there's meaningful movement (reduced threshold)
+      if (Math.abs(movement.deltaX) > 0.3 || Math.abs(movement.deltaY) > 0.3) {
+        emit('headPoseChange', pose)
+      }
+      
+      // Update last position for next frame
+      lastHeadCenter.value = currentCenter
       
       // Update tracking status
       if (!isTracking.value) {
@@ -234,21 +291,47 @@ const detectFaces = async () => {
           ctx.lineWidth = 2
           ctx.strokeRect(box.x, box.y, box.width, box.height)
           
-          // Draw landmarks
-          ctx.fillStyle = '#00ff00'
-          detection.landmarks.positions.forEach((point: any) => {
+          // Draw head center point
+          ctx.fillStyle = '#ff0000'
+          ctx.beginPath()
+          ctx.arc(currentCenter.x, currentCenter.y, 4, 0, 2 * Math.PI)
+          ctx.fill()
+          
+          // Draw movement vector if there's a previous position
+          if (lastHeadCenter.value) {
+            ctx.strokeStyle = '#ff0000'
+            ctx.lineWidth = 2
             ctx.beginPath()
-            ctx.arc(point.x, point.y, 1, 0, 2 * Math.PI)
-            ctx.fill()
-          })
+            ctx.moveTo(lastHeadCenter.value.x, lastHeadCenter.value.y)
+            ctx.lineTo(currentCenter.x, currentCenter.y)
+            ctx.stroke()
+          }
+          
+          // Draw landmarks if enabled
+          if (props.showDebugInfo) {
+            ctx.fillStyle = '#00ff00'
+            detection.landmarks.positions.forEach((point: any) => {
+              ctx.beginPath()
+              ctx.arc(point.x, point.y, 1, 0, 2 * Math.PI)
+              ctx.fill()
+            })
+          }
         }
       }
       
     } else {
-      // No face detected
-      if (isTracking.value) {
+      // No face detected - only reset after several consecutive missed frames
+      missedFrames++
+      
+      // Only reset tracking after missing face for 15+ consecutive frames (~1.5 seconds)
+      if (missedFrames > 15 && isTracking.value) {
         isTracking.value = false
+        isCalibrating.value = false
+        calibrationFrames.value = 0
+        lastHeadCenter.value = null
+        headCenter.value = null
         emit('trackingStatusChange', false)
+        statusText.value = 'Face lost - looking for face...'
       }
     }
     
@@ -264,6 +347,13 @@ const startTracking = async () => {
   if (!props.trackingEnabled) return
   
   try {
+    // Reset calibration when starting
+    isCalibrating.value = false
+    calibrationFrames.value = 0
+    lastHeadCenter.value = null
+    headCenter.value = null
+    missedFrames = 0
+    
     // Load models first
     if (!modelsLoaded) {
       statusText.value = 'Loading models...'
@@ -283,8 +373,8 @@ const startTracking = async () => {
     }
     
     // Start detection loop
-    detectionInterval = setInterval(detectFaces, 100) // 10 FPS
-    statusText.value = 'Tracking...'
+    detectionInterval = setInterval(detectFaces, 125) // 8 FPS for better stability
+    statusText.value = 'Calibrating...'
     
   } catch (err: any) {
     const errorMsg = `Tracking initialization failed: ${err.message}`
