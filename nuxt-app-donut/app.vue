@@ -34,9 +34,10 @@ html, body {
   height: 100%;
 }
 
-/* Root div should take full viewport */
+/* Root div should take full viewport with margins */
 #__nuxt > div {
-  width: 100%;
+  width: calc(100% - 20px);
   height: 100%;
+  margin: 0 10px;
 }
 </style>
