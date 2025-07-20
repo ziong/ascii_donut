@@ -1,6 +1,6 @@
 <template>
   <div class="donut-container">
-    <pre ref="donutPreElement" class="donut-pre-tag">{{ frameContent }}</pre>
+    <pre ref="donutPreElement" class="donut-pre-tag" v-html="frameContent"></pre>
     <div class="zoom-slider-container">
       <input 
         type="range" 
@@ -190,6 +190,10 @@
             <td class="key-label">WHEEL:</td>
             <td class="key-description">ZOOM IN/OUT</td>
           </tr>
+          <tr>
+            <td class="key-label">C:</td>
+            <td class="key-description">SHOW CENTROID</td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -247,6 +251,9 @@ const isRecalculating = ref<boolean>(false);
 
 // Pause state for rotation
 const isPaused = ref<boolean>(false);
+
+// Centroid display state
+const showCentroid = ref<boolean>(false);
 
 // Torus geometry constants (can be tweaked)
 const R1 = 1;
@@ -367,6 +374,7 @@ const renderFrame = () => {
       const z_ = K2 + cA * x * sp + y * sA;
       const ooz = 1 / z_;
 
+      // Center the donut on screen
       const xp = Math.floor(screenWidth.value / 2 + K1.value * ooz * x_);
       const yp = Math.floor(screenHeight.value / 2 - K1.value * ooz * y_);
 
@@ -379,6 +387,18 @@ const renderFrame = () => {
           z[idx] = ".,-~:;=!*#$@"[Math.min(Math.max(luminance_index, 0), 11)];
         }
       }
+    }
+  }
+
+  // Add centroid marker if enabled - shows the center of rotation
+  if (showCentroid.value) {
+    const markerX = Math.floor(screenWidth.value / 2);
+    const markerY = Math.floor(screenHeight.value / 2);
+    
+    // Draw red "X" at screen center (center of rotation)
+    const centerIdx = markerX + screenWidth.value * markerY;
+    if (centerIdx >= 0 && centerIdx < bufferSize) {
+      z[centerIdx] = '<span style="color: #ff0000; text-shadow: 0 0 3px #ff0000; font-weight: bold;">X</span>';
     }
   }
 
@@ -742,6 +762,9 @@ const handleKeyDown = (e: KeyboardEvent) => {
   } else if (e.key === ' ') {
     e.preventDefault(); // Prevent page scrolling
     isPaused.value = !isPaused.value; // Toggle pause state
+  } else if (e.key === 'c' || e.key === 'C') {
+    e.preventDefault();
+    showCentroid.value = !showCentroid.value; // Toggle centroid display
   }
 };
 
