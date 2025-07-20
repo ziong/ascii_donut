@@ -279,20 +279,6 @@ const renderFrame = () => {
   const cA = Math.cos(currentA), sA = Math.sin(currentA);
   const cB = Math.cos(currentB), sB = Math.sin(currentB);
 
-  // Calculate where the 3D origin (0,0,0) projects to on screen
-  // This is the true centroid - the center of the 3D coordinate system
-  const origin_x = 0, origin_y = 0, origin_z = 0;
-  
-  // Apply same rotation transformations to origin
-  const origin_x_ = origin_x * (cB * 1 + sA * sB * 0) - origin_y * cA * sB; // cp=1, sp=0 for origin
-  const origin_y_ = origin_x * (sB * 1 - sA * cB * 0) + origin_y * cA * cB;
-  const origin_z_ = K2 + cA * origin_x * 0 + origin_y * sA;
-  
-  // Project 3D origin to screen coordinates
-  const origin_ooz = 1 / origin_z_;
-  const centroidScreenX = K1.value * origin_ooz * origin_x_;
-  const centroidScreenY = -K1.value * origin_ooz * origin_y_;
-
   for (let theta = 0; theta < 2 * Math.PI; theta += 0.07) {
     const ct = Math.cos(theta), st = Math.sin(theta);
     for (let phi = 0; phi < 2 * Math.PI; phi += 0.02) {
@@ -304,9 +290,9 @@ const renderFrame = () => {
       const z_ = K2 + cA * x * sp + y * sA;
       const ooz = 1 / z_;
 
-      // Offset donut so that 3D origin appears at screen center
-      const xp = Math.floor(screenWidth.value / 2 + K1.value * ooz * x_ - centroidScreenX);
-      const yp = Math.floor(screenHeight.value / 2 - K1.value * ooz * y_ - centroidScreenY);
+      // Center the donut on screen
+      const xp = Math.floor(screenWidth.value / 2 + K1.value * ooz * x_);
+      const yp = Math.floor(screenHeight.value / 2 - K1.value * ooz * y_);
 
       const L1 = cp * ct * sB - cA * ct * sp - sA * st + cB * (cA * st - ct * sA * sp);
       if (L1 > 0) {
@@ -320,12 +306,12 @@ const renderFrame = () => {
     }
   }
 
-  // Add centroid marker if enabled - now shows the true 3D origin
+  // Add centroid marker if enabled - shows the center of rotation
   if (showCentroid.value) {
     const markerX = Math.floor(screenWidth.value / 2);
     const markerY = Math.floor(screenHeight.value / 2);
     
-    // Draw red "X" at screen center (where 3D origin is positioned)
+    // Draw red "X" at screen center (center of rotation)
     const centerIdx = markerX + screenWidth.value * markerY;
     if (centerIdx >= 0 && centerIdx < bufferSize) {
       z[centerIdx] = '<span style="color: #ff0000; text-shadow: 0 0 3px #ff0000; font-weight: bold;">X</span>';
