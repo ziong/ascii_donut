@@ -429,6 +429,21 @@ onUnmounted(() => {
   height: 240px;
 }
 
+/* Responsive sizing for different screen layouts */
+@media screen and (min-width: 1200px) {
+  .head-tracker-container {
+    width: 240px;
+    height: 180px;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .head-tracker-container {
+    width: 280px;
+    height: 210px;
+  }
+}
+
 .webcam-video {
   width: 100%;
   height: 100%;

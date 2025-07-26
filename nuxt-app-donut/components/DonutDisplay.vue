@@ -1529,6 +1529,14 @@ onUnmounted(() => {
   transition: all 0.3s ease;
 }
 
+/* Ensure status table has enough space on wide screens */
+@media screen and (min-width: 1200px) {
+  .status-table {
+    min-width: 260px;
+    max-width: 260px;
+  }
+}
+
 /* Mobile responsive adjustments for status table */
 @media screen and (max-width: 768px) {
   .status-table {
@@ -1625,6 +1633,14 @@ onUnmounted(() => {
   min-width: var(--control-width);
   backdrop-filter: blur(2px);
   transition: all 0.3s ease;
+}
+
+/* Ensure key bindings table has consistent width on wide screens */
+@media screen and (min-width: 1200px) {
+  .keybindings-table {
+    min-width: 260px;
+    max-width: 260px;
+  }
 }
 
 /* Mobile responsive adjustments for key bindings table */
@@ -1955,5 +1971,35 @@ button.pause-button.wide-pause-button {
   background: rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(2px);
   padding: 4px;
+}
+
+/* Wide screen layout - move head tracker to right side */
+@media screen and (min-width: 1200px) {
+  .head-tracker-overlay {
+    left: auto;
+    right: 280px; /* Position to the left of the status table */
+    top: 300px; /* Position below the keybindings table */
+  }
+}
+
+/* Medium screen layout - keep on left but adjust position */
+@media screen and (max-width: 1199px) and (min-width: 768px) {
+  .head-tracker-overlay {
+    top: 350px; /* Move down to avoid overlap */
+  }
+}
+
+/* Mobile layout - move to bottom */
+@media screen and (max-width: 767px) {
+  .head-tracker-overlay {
+    position: fixed;
+    bottom: 80px;
+    left: 20px;
+    right: 20px;
+    top: auto;
+    width: auto;
+    max-width: 320px;
+    margin: 0 auto;
+  }
 }
 </style>
