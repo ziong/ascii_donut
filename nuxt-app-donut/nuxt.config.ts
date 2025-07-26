@@ -1,6 +1,12 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   devtools: { enabled: true },
+  // Configure client-side only rendering for face-api
+  ssr: false, // Disable SSR to prevent hydration mismatches
+  // Handle face-api imports that require browser APIs
+  build: {
+    transpile: ['@vladmandic/face-api']
+  },
   app: {
     head: {
       title: 'ASCII Donut Nuxt',
@@ -25,11 +31,8 @@ export default defineNuxtConfig({
     server: {
       host: '0.0.0.0',
       port: 3000,
-      // Configure HMR for local development
-      hmr: {
-        protocol: 'ws', // Use 'ws' for local HTTP development
-        port: 3000
-      },
+      // Simplified HMR for development - disabled to avoid WebSocket issues with face-api
+      hmr: false,
       // Allow requests from any host for development
       allowedHosts: ['*'],
     }

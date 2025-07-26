@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@vladmandic/face-api": "^1.7.15",
     "nuxt": "^3.10.0"
   },
   "devDependencies": {

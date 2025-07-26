@@ -13,7 +13,7 @@
       />
       <div class="zoom-labels">
         <span class="zoom-label zoom-max">5x</span>
-        <span class="zoom-label zoom-current">{{ zoomFactor.toFixed(1) }}x</span>
+        <span class="zoom-label zoom-current">{{ isMounted ? zoomFactor.toFixed(1) + 'x' : '...' }}</span>
         <span class="zoom-label zoom-min">0.05x</span>
       </div>
     </div>
@@ -31,7 +31,7 @@
       />
       <div class="speed-labels">
         <span class="speed-label">X-SPEED</span>
-        <span class="speed-value">{{ rotationSpeedX.toFixed(2) }}</span>
+        <span class="speed-value">{{ isMounted ? rotationSpeedX.toFixed(2) : '...' }}</span>
       </div>
     </div>
 
@@ -48,7 +48,7 @@
       />
       <div class="speed-labels">
         <span class="speed-label">Y-SPEED</span>
-        <span class="speed-value">{{ rotationSpeedY.toFixed(2) }}</span>
+        <span class="speed-value">{{ isMounted ? rotationSpeedY.toFixed(2) : '...' }}</span>
       </div>
     </div>
 
@@ -65,7 +65,7 @@
       />
       <div class="font-labels">
         <span class="font-label">FONT</span>
-        <span class="font-value">{{ fontSize }}px</span>
+        <span class="font-value">{{ isMounted ? fontSize + 'px' : '...' }}</span>
       </div>
     </div>
 
@@ -123,19 +123,19 @@
         <tbody>
           <tr>
             <td class="status-label">FPS:</td>
-            <td class="status-value">{{ FPS }}</td>
+            <td class="status-value">{{ isMounted ? FPS : '...' }}</td>
           </tr>
           <tr>
             <td class="status-label">X-AXIS:</td>
-            <td class="status-value">{{ rotationSpeedX.toFixed(3) }} rad/s</td>
+            <td class="status-value">{{ isMounted ? rotationSpeedX.toFixed(3) + ' rad/s' : '...' }}</td>
           </tr>
           <tr>
             <td class="status-label">Y-AXIS:</td>
-            <td class="status-value">{{ rotationSpeedY.toFixed(3) }} rad/s</td>
+            <td class="status-value">{{ isMounted ? rotationSpeedY.toFixed(3) + ' rad/s' : '...' }}</td>
           </tr>
           <tr>
             <td class="status-label">STATUS:</td>
-            <td class="status-value">{{ isPaused ? 'PAUSED' : 'ROTATING' }}</td>
+            <td class="status-value">{{ isMounted ? (isPaused ? 'PAUSED' : 'ROTATING') : 'LOADING' }}</td>
           </tr>
           <tr v-if="isPinching">
             <td class="status-label">GESTURE:</td>
@@ -147,11 +147,15 @@
           </tr>
           <tr>
             <td class="status-label">ZOOM:</td>
-            <td class="status-value">{{ (zoomFactor * 100).toFixed(0) }}%</td>
+            <td class="status-value">{{ isMounted ? (zoomFactor * 100).toFixed(0) + '%' : '...' }}</td>
           </tr>
           <tr>
             <td class="status-label">FONT:</td>
-            <td class="status-value">{{ fontSize }}px</td>
+            <td class="status-value">{{ isMounted ? fontSize + 'px' : '...' }}</td>
+          </tr>
+          <tr>
+            <td class="status-label">HEAD:</td>
+            <td class="status-value">{{ isMounted ? (headTrackingEnabled ? (isHeadTracking ? 'ACTIVE' : 'WAITING') : 'OFF') : 'OFF' }}</td>
           </tr>
         </tbody>
       </table>
@@ -194,14 +198,49 @@
             <td class="key-label">C:</td>
             <td class="key-description">SHOW CENTROID</td>
           </tr>
+          <tr>
+            <td class="key-label">H:</td>
+            <td class="key-description">TOGGLE HEAD TRACKING</td>
+          </tr>
+          <tr>
+            <td class="key-label">D:</td>
+            <td class="key-description">HEAD TRACKING DEBUG</td>
+          </tr>
+          <tr>
+            <td class="key-label">HEAD:</td>
+            <td class="key-description">MOVE TO ROTATE</td>
+          </tr>
         </tbody>
       </table>
     </div>
+
+    <!-- Head Tracking Toggle Button -->
+    <div class="head-tracking-button-container">
+      <button class="head-tracking-button" @click="toggleHeadTracking">
+        <span v-if="headTrackingEnabled">👁️ HEAD ON</span>
+        <span v-else>👁️ HEAD OFF</span>
+      </button>
+    </div>
+
+    <!-- Head Tracker Component -->
+    <ClientOnly>
+      <div class="head-tracker-overlay" v-if="headTrackingEnabled">
+        <HeadTracker 
+          :tracking-enabled="headTrackingEnabled && isPaused"
+          :show-preview="true"
+          :show-detections="showHeadTrackingDebug"
+          :show-debug-info="showHeadTrackingDebug"
+          @head-pose-change="handleHeadPoseChange"
+          @tracking-status-change="handleTrackingStatusChange"
+          @error="handleHeadTrackingError"
+        />
+      </div>
+    </ClientOnly>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 
 const donutPreElement = ref<HTMLPreElement | null>(null);
 const frameContent = ref<string>('');
@@ -214,6 +253,9 @@ const screenHeight = ref<number>(40); // Default height in characters
 let K1 = ref<number>(0); // Projection constant K1
 const zoomFactor = ref<number>(0.25); // Zoom factor (1 = normal, >1 = zoomed in, <1 = zoomed out)
 const fontSize = ref<number>(15); // Font size in pixels
+
+// Hydration safety
+const isMounted = ref(false)
 
 // Mouse dragging state
 const isDragging = ref<boolean>(false);
@@ -254,6 +296,20 @@ const isPaused = ref<boolean>(false);
 
 // Centroid display state
 const showCentroid = ref<boolean>(false);
+
+// Head tracking state
+const headTrackingEnabled = ref<boolean>(true); // Enable head tracking by default
+const showHeadTrackingDebug = ref<boolean>(true); // Enable debug mode by default
+const isHeadTracking = ref<boolean>(false);
+const currentHeadPose = ref<{ pitch: number, yaw: number, roll: number } | null>(null);
+
+// Head tracking sensitivity and mapping
+const headTrackingSensitivity = ref<number>(0.02); // Sensitivity multiplier
+const headTrackingSmoothing = ref<number>(0.1); // Smoothing factor (0-1)
+
+// Head tracking optimization
+let lastHeadTrackingRender = 0;
+const headTrackingRenderThrottle = 50; // Minimum ms between renders
 
 // Torus geometry constants (can be tweaked)
 const R1 = 1;
@@ -765,6 +821,12 @@ const handleKeyDown = (e: KeyboardEvent) => {
   } else if (e.key === 'c' || e.key === 'C') {
     e.preventDefault();
     showCentroid.value = !showCentroid.value; // Toggle centroid display
+  } else if (e.key === 'h' || e.key === 'H') {
+    e.preventDefault();
+    toggleHeadTracking(); // Toggle head tracking
+  } else if (e.key === 'd' || e.key === 'D') {
+    e.preventDefault();
+    showHeadTrackingDebug.value = !showHeadTrackingDebug.value; // Toggle debug display
   }
 };
 
@@ -902,7 +964,52 @@ const setInitialZoomFactor = () => {
   }
 };
 
+// Head tracking functions
+const toggleHeadTracking = () => {
+  headTrackingEnabled.value = !headTrackingEnabled.value;
+  if (!headTrackingEnabled.value) {
+    isHeadTracking.value = false;
+    currentHeadPose.value = null;
+  }
+};
+
+const handleHeadPoseChange = (pose: { pitch: number, yaw: number, roll: number, deltaX?: number, deltaY?: number }) => {
+  if (!headTrackingEnabled.value || !isPaused.value) return;
+  
+  // Store current pose
+  currentHeadPose.value = pose;
+  
+  // Use delta movement for relative rotation control
+  // Right movement (positive deltaX/yaw) = clockwise rotation (positive B)
+  // Down movement (positive deltaY/pitch) = forward tilt (positive A)
+  
+  // Apply the movement delta directly to rotation with sensitivity scaling
+  const sensitivity = headTrackingSensitivity.value * 20; // Increased for delta movement
+  
+  // Add rotation incrementally based on head movement
+  B.value += pose.yaw * sensitivity; // Yaw controls horizontal rotation
+  A.value += pose.pitch * sensitivity; // Pitch controls vertical rotation
+  
+  // Throttled render for responsive head tracking without overwhelming the system
+  const now = Date.now();
+  if (now - lastHeadTrackingRender > headTrackingRenderThrottle) {
+    renderFrame();
+    lastHeadTrackingRender = now;
+  }
+};
+
+const handleTrackingStatusChange = (tracking: boolean) => {
+  isHeadTracking.value = tracking;
+};
+
+const handleHeadTrackingError = (error: string) => {
+  console.error('Head tracking error:', error);
+  // Optionally show user-friendly error message
+};
+
 onMounted(() => {
+  isMounted.value = true;
+  
   // Generate random rotation speeds only on client side to prevent hydration mismatch
   if (process.client) {
     const randomSpeedX = Math.random() * 0.9 + 0.1; // X-axis rotation speed (0.1 to 1 rad/s)
@@ -925,6 +1032,7 @@ onMounted(() => {
   }
   
   // Global events for drag continuation and other interactions
+  window.addEventListener('mousedown', handleMouseDown);
   window.addEventListener('mousemove', handleMouseMove);
   window.addEventListener('mouseup', handleMouseUpOrLeave);
   window.addEventListener('mouseleave', handleMouseUpOrLeave);
@@ -1646,6 +1754,44 @@ button.pause-button.wide-pause-button {
   transform: scale(0.95);
 }
 
+/* Head Tracking Button Styles */
+.head-tracking-button-container {
+  position: absolute;
+  top: 770px;
+  right: 20px;
+  width: 220px;
+  z-index: 1000;
+  pointer-events: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.head-tracking-button {
+  width: 140px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #00ff00;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #00ff00;
+  text-shadow: 0 0 3px #00ff00;
+  backdrop-filter: blur(2px);
+  transition: all 0.2s ease;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+}
+
+.head-tracking-button:hover {
+  background: rgba(0, 255, 0, 0.1);
+  border-color: #44ff44;
+  color: #44ff44;
+  transform: scale(1.02);
+}
+
+.head-tracking-button:active {
+  transform: scale(0.98);
+}
+
 /* Gesture Help Modal Styles */
 .gesture-help-overlay {
   position: fixed;
@@ -1796,5 +1942,18 @@ button.pause-button.wide-pause-button {
   .gesture-description {
     padding: 6px 0 6px 8px;
   }
+}
+
+/* Head Tracker Overlay Styles */
+.head-tracker-overlay {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+  pointer-events: auto;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(2px);
+  padding: 4px;
 }
 </style>
