@@ -10,6 +10,8 @@
         :step="0.1" 
         :value="zoomFactor"
         @input="handleSliderZoom"
+        @mousedown.stop
+        @touchstart.stop
       />
       <div class="zoom-labels">
         <span class="zoom-label zoom-max">5x</span>
@@ -28,6 +30,8 @@
         :step="0.01" 
         :value="rotationSpeedX"
         @input="handleXSpeedSlider"
+        @mousedown.stop
+        @touchstart.stop
       />
       <div class="speed-labels">
         <span class="speed-label">X-SPEED</span>
@@ -45,6 +49,8 @@
         :step="0.01" 
         :value="rotationSpeedY"
         @input="handleYSpeedSlider"
+        @mousedown.stop
+        @touchstart.stop
       />
       <div class="speed-labels">
         <span class="speed-label">Y-SPEED</span>
@@ -62,6 +68,8 @@
         :step="1" 
         :value="fontSize"
         @input="handleFontSizeSlider"
+        @mousedown.stop
+        @touchstart.stop
       />
       <div class="font-labels">
         <span class="font-label">FONT</span>
@@ -71,7 +79,7 @@
 
     <!-- Pause/Resume Button - Updated Width -->
     <div class="pause-button-container">
-      <button class="pause-button wide-pause-button" @click="togglePause" style="width: 220px !important; min-width: 220px !important; max-width: 220px !important;">
+      <button class="pause-button wide-pause-button" @click="togglePause">
         <span v-if="isPaused">▶</span>
         <span v-else>⏸</span>
       </button>
@@ -1138,26 +1146,26 @@ onUnmounted(() => {
   flex-direction: row;
   align-items: center;
   z-index: 9999;
-  width: var(--control-width);
+  width: 260px;
   height: auto;
   pointer-events: auto;
   transition: all 0.3s ease;
 }
 
 .zoom-slider-container {
-  top: 520px;
+  top: 530px;
 }
 
 .speed-slider-container.x-speed {
-  top: 570px;
+  top: 580px;
 }
 
 .speed-slider-container.y-speed {
-  top: 620px;
+  top: 630px;
 }
 
 .font-slider-container {
-  top: 670px;
+  top: 680px;
 }
 
 /* Tablet Styles (768px - 1200px) */
@@ -1172,10 +1180,10 @@ onUnmounted(() => {
     --font-size-large: 13px;
   }
   
-  .zoom-slider-container { top: 480px; }
-  .speed-slider-container.x-speed { top: 520px; }
-  .speed-slider-container.y-speed { top: 560px; }
-  .font-slider-container { top: 600px; }
+  .zoom-slider-container { top: 490px; }
+  .speed-slider-container.x-speed { top: 530px; }
+  .speed-slider-container.y-speed { top: 570px; }
+  .font-slider-container { top: 610px; }
 }
 
 /* Mobile Landscape (480px - 768px) */
@@ -1247,9 +1255,9 @@ onUnmounted(() => {
 /* Pause Button Container - Responsive */
 .pause-button-container {
   position: absolute;
-  top: 720px;
+  top: 780px;
   right: var(--control-padding);
-  width: var(--control-width);
+  width: 260px;
   z-index: 9999;
   pointer-events: auto;
   display: flex;
@@ -1258,8 +1266,8 @@ onUnmounted(() => {
 }
 
 .pause-button {
-  width: var(--control-width) !important;
-  max-width: var(--control-width) !important;
+  width: 260px !important;
+  max-width: 260px !important;
   height: 50px;
   min-height: var(--touch-target-size);
   background: rgba(0, 0, 0, 0.85);
@@ -1301,7 +1309,7 @@ onUnmounted(() => {
 /* Tablet adjustments for pause button */
 @media screen and (max-width: 1200px) and (min-width: 768px) {
   .pause-button-container {
-    top: 640px;
+    top: 650px;
   }
 }
 
@@ -1524,7 +1532,7 @@ onUnmounted(() => {
   color: #00ff00;
   text-shadow: 0 0 3px #00ff00;
   z-index: 9999;
-  min-width: var(--control-width);
+  width: 260px;
   backdrop-filter: blur(2px);
   transition: all 0.3s ease;
 }
@@ -1619,18 +1627,18 @@ onUnmounted(() => {
 /* Key Bindings Table Styles - Responsive */
 .keybindings-table {
   position: absolute;
-  top: 280px;
+  top: 250px;
   right: var(--control-padding);
   background: rgba(0, 0, 0, 0.8);
   border: 2px solid #00ff00;
   border-radius: 6px;
-  padding: 16px;
+  padding: 12px;
   font-family: 'Courier New', monospace;
   font-size: var(--font-size-medium);
   color: #00ff00;
   text-shadow: 0 0 3px #00ff00;
   z-index: 9999;
-  min-width: var(--control-width);
+  width: 260px;
   backdrop-filter: blur(2px);
   transition: all 0.3s ease;
 }
@@ -1707,18 +1715,18 @@ onUnmounted(() => {
 
 /* FORCE PAUSE BUTTON WIDTH - MAXIMUM SPECIFICITY */
 .donut-container .pause-button-container .pause-button.wide-pause-button {
-  width: 220px !important;
-  min-width: 220px !important;
-  max-width: 220px !important;
+  width: 260px !important;
+  min-width: 260px !important;
+  max-width: 260px !important;
   display: flex !important;
   flex: none !important;
 }
 
 /* BACKUP FORCE RULE */
 button.pause-button.wide-pause-button {
-  width: 220px !important;
-  min-width: 220px !important;
-  max-width: 220px !important;
+  width: 260px !important;
+  min-width: 260px !important;
+  max-width: 260px !important;
 }
 
 /* Help Icon Styles - Only visible in small screen portrait mode */
@@ -1773,9 +1781,9 @@ button.pause-button.wide-pause-button {
 /* Head Tracking Button Styles */
 .head-tracking-button-container {
   position: absolute;
-  top: 770px;
-  right: 20px;
-  width: 220px;
+  top: 730px;
+  right: var(--control-padding);
+  width: 260px;
   z-index: 1000;
   pointer-events: auto;
   display: flex;
@@ -1783,7 +1791,7 @@ button.pause-button.wide-pause-button {
 }
 
 .head-tracking-button {
-  width: 140px;
+  width: 260px;
   height: 40px;
   background: rgba(0, 0, 0, 0.8);
   border: 2px solid #00ff00;
@@ -1962,10 +1970,10 @@ button.pause-button.wide-pause-button {
 
 /* Head Tracker Overlay Styles */
 .head-tracker-overlay {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  z-index: 1000;
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 10001;
   pointer-events: auto;
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.1);
@@ -1973,19 +1981,19 @@ button.pause-button.wide-pause-button {
   padding: 4px;
 }
 
-/* Wide screen layout - move head tracker to right side */
+/* Wide screen layout - keep at absolute top right */
 @media screen and (min-width: 1200px) {
   .head-tracker-overlay {
-    left: auto;
-    right: 280px; /* Position to the left of the status table */
-    top: 300px; /* Position below the keybindings table */
+    top: 10px;
+    right: 10px;
   }
 }
 
-/* Medium screen layout - keep on left but adjust position */
+/* Medium screen layout - keep at absolute top right */
 @media screen and (max-width: 1199px) and (min-width: 768px) {
   .head-tracker-overlay {
-    top: 350px; /* Move down to avoid overlap */
+    top: 10px;
+    right: 10px;
   }
 }
 
